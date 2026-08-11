@@ -1,6 +1,18 @@
 -- Phase 1: stores, profiles, role_permissions, and the RLS helper functions.
--- Run this once in the Supabase SQL editor (Project -> SQL Editor -> New query)
--- against a freshly created project.
+-- Run this in the Supabase SQL editor (Project -> SQL Editor -> New query)
+-- against your project. Safe to re-run from scratch (e.g. after an earlier
+-- attempt failed partway through) — it drops its own objects first.
+
+-- `drop table ... cascade` also drops that table's RLS policies (they're
+-- owned by the table) — no need to drop policies separately. `if exists`
+-- makes each line a no-op on a truly fresh project where nothing below has
+-- been created yet.
+drop table if exists role_permissions cascade;
+drop table if exists profiles cascade;
+drop table if exists stores cascade;
+drop function if exists has_perm(text);
+drop function if exists app_role();
+drop function if exists current_store_id();
 
 create extension if not exists pgcrypto;
 
