@@ -69,7 +69,9 @@ as $$
   select store_id from profiles where id = auth.uid();
 $$;
 
-create function current_role() returns text
+-- Named app_role(), not current_role() — that name collides with Postgres's
+-- own reserved CURRENT_ROLE syntax and fails with a parse error.
+create function app_role() returns text
 language sql stable security definer
 set search_path = public
 as $$
@@ -83,7 +85,7 @@ as $$
   select coalesce(
     (select allowed from role_permissions
       where store_id = current_store_id()
-        and role = current_role()
+        and role = app_role()
         and permission_key = p_key),
     false
   );
@@ -114,5 +116,5 @@ create policy role_permissions_select on role_permissions
   for select using (store_id = current_store_id());
 
 create policy role_permissions_write_by_owner on role_permissions
-  for all using (store_id = current_store_id() and has_perm('users') and current_role() = 'Owner')
-  with check (store_id = current_store_id() and has_perm('users') and current_role() = 'Owner');
+  for all using (store_id = current_store_id() and has_perm('users') and app_role() = 'Owner')
+  with check (store_id = current_store_id() and has_perm('users') and app_role() = 'Owner');
