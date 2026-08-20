@@ -11,16 +11,18 @@ function UsersList() {
   return (
     <>
       {canManage && (
-        <button
-          type="button"
-          className="btn btn--primary"
-          style={{ marginBottom: 16, fontSize: 13 }}
-          onClick={() =>
-            pos.openModal({ type: 'user', mode: 'add', data: { name: '', email: '', phone: '', role: 'Cashier' } })
-          }
+        <div
+          style={{
+            fontSize: 11.5,
+            color: 'var(--warn)',
+            background: 'var(--warn-bg)',
+            padding: '9px 12px',
+            borderRadius: 8,
+            marginBottom: 16,
+          }}
         >
-          + {t.addUser}
-        </button>
+          {t.addUserHint}
+        </div>
       )}
 
       <div className="card table-list">

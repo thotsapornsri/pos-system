@@ -15,7 +15,10 @@ export function SettingsView() {
 
   const patchForm = (p: Partial<StoreSettings>) => {
     if (!canEdit) return;
-    pos.set((s) => ({ settingsDraft: { ...(s.settingsDraft ?? s.storeSettings), ...p } }));
+    // storeSettings comes from the merged query data (pos.storeSettings),
+    // not the raw PosState the `set` updater's `s` parameter reflects — read
+    // it from the closure, not from `s`.
+    pos.set((s) => ({ settingsDraft: { ...(s.settingsDraft ?? pos.storeSettings), ...p } }));
   };
 
   return (
@@ -92,7 +95,7 @@ export function SettingsView() {
                   aria-label={color}
                   aria-pressed={pos.accent === color}
                   disabled={!canEdit}
-                  onClick={() => pos.set({ accent: color })}
+                  onClick={() => pos.setAccent(color)}
                   style={{
                     width: 32,
                     height: 32,

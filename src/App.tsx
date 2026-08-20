@@ -21,8 +21,14 @@ function Root() {
   // Avoid flashing the login screen while the initial Supabase session check
   // (whether a saved session exists) is still in flight.
   if (pos.authLoading) return null;
+  if (!pos.currentUser) return <Login />;
 
-  return pos.currentUser ? <Shell /> : <Login />;
+  // Once signed in, wait for the first load of master data (products,
+  // materials, roles, ...) so the sidebar/permissions don't flash an
+  // empty/wrong state before the queries resolve.
+  if (pos.dataLoading) return null;
+
+  return <Shell />;
 }
 
 export function App() {

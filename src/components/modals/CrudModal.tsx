@@ -8,6 +8,7 @@ interface FieldDef {
   label: string;
   type?: 'text' | 'number';
   options?: { value: string; label: string }[];
+  readOnly?: boolean;
 }
 
 function fieldsFor(modal: CrudModalState, t: Translation): { title: string; fields: FieldDef[] } {
@@ -56,7 +57,10 @@ function fieldsFor(modal: CrudModalState, t: Translation): { title: string; fiel
         title: modal.mode === 'add' ? t.addUser : t.usersTable.user,
         fields: [
           { key: 'name', label: t.usersTable.user },
-          { key: 'email', label: 'Email' },
+          // Editing this here wouldn't rename their actual Supabase Auth
+          // login email (that needs auth.updateUser on their own session) —
+          // shown read-only rather than silently doing nothing useful.
+          { key: 'email', label: 'Email', readOnly: true },
           { key: 'phone', label: t.phone },
           { key: 'role', label: t.usersTable.role, options: ROLE_NAMES.map((r) => ({ value: r, label: t.roles[r] })) },
         ],
@@ -112,6 +116,8 @@ export function CrudModal() {
                     type={f.type ?? 'text'}
                     step={f.type === 'number' ? 'any' : undefined}
                     value={String(value)}
+                    readOnly={f.readOnly}
+                    disabled={f.readOnly}
                     onChange={(e) =>
                       pos.updateModalField(f.key, f.type === 'number' ? Number(e.target.value) : e.target.value)
                     }
