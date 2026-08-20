@@ -120,19 +120,11 @@ export const SALES_ORDERS: SalesOrder[] = [
 
 export const GOODS_RECEIPTS: GoodsReceipt[] = [];
 
-export const DAILY_SALES: [string, number, number][] = [
-  ['จ.', 1120, 84], ['อ.', 980, 76], ['พ.', 1340, 102], ['พฤ.', 1260, 95],
-  ['ศ.', 1580, 118], ['ส.', 1890, 142], ['อา.', 1420, 108],
-];
+export const DAILY_SALES: [string, number, number][] = [];
 
-export const MONTHLY_SALES: [string, number][] = [
-  ['ม.ค.', 31200], ['ก.พ.', 29800], ['มี.ค.', 33900],
-  ['เม.ย.', 35100], ['พ.ค.', 34200], ['มิ.ย.', 38940],
-];
+export const MONTHLY_SALES: [string, number][] = [];
 
-export const YEARLY_SALES: [string, number][] = [
-  ['2567', 392400], ['2568', 421900], ['2569', 467280],
-];
+export const YEARLY_SALES: [string, number][] = [];
 
 export type PeriodKey = 'day' | 'month' | 'year';
 export type KpiKey = 'revenue' | 'orders' | 'avgOrder' | 'grossProfit';
@@ -148,42 +140,33 @@ interface PeriodData {
 
 export const PERIOD_DATA: Record<PeriodKey, PeriodData> = {
   day: {
-    kpis: [['revenue', 1284, 8.2], ['orders', '96', 3.1], ['avgOrder', 13.38, 4.9], ['grossProfit', 742, 6.4]],
-    bars: [42, 58, 50, 70, 64, 88, 74],
+    kpis: [['revenue', 0, 0], ['orders', '0', 0], ['avgOrder', 0, 0], ['grossProfit', 0, 0]],
+    bars: [0, 0, 0, 0, 0, 0, 0],
     barLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    cogs: 342, opex: 200, net: 742,
+    cogs: 0, opex: 0, net: 0,
   },
   month: {
-    kpis: [['revenue', 38940, 11.4], ['orders', '2,910', 6.7], ['avgOrder', 13.38, 4.3], ['grossProfit', 22180, 9.8]],
-    bars: [55, 48, 62, 70, 58, 80, 90, 74, 66, 85, 92, 100],
+    kpis: [['revenue', 0, 0], ['orders', '0', 0], ['avgOrder', 0, 0], ['grossProfit', 0, 0]],
+    bars: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     barLabels: ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'],
-    cogs: 10820, opex: 5940, net: 22180,
+    cogs: 0, opex: 0, net: 0,
   },
   year: {
-    kpis: [['revenue', 467280, 18.6], ['orders', '34,920', 12.2], ['avgOrder', 13.38, 5.1], ['grossProfit', 266150, 14.9]],
-    bars: [40, 52, 61, 58, 72, 80, 68, 85, 90, 100, 95, 88],
-    barLabels: ["'21", "'22", "'23", "'24", "'25", "'26", '', '', '', '', '', ''],
-    cogs: 129800, opex: 71330, net: 266150,
+    kpis: [['revenue', 0, 0], ['orders', '0', 0], ['avgOrder', 0, 0], ['grossProfit', 0, 0]],
+    bars: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    barLabels: ["'24", "'25", "'26", '', '', '', '', '', '', '', '', ''],
+    cogs: 0, opex: 0, net: 0,
   },
 };
 
-export const BEST_SELLERS: [string, number][] = [
-  ['Cappuccino', 412], ['Croissant', 388], ['Iced Latte', 305], ['Avocado Toast', 270],
-];
+export const BEST_SELLERS: [string, number][] = [];
 
-export const WORST_SELLERS: [string, number][] = [
-  ['Ceramic Mug', 6], ['Coffee Beans 250g', 11], ['Matcha Latte', 19], ['Caesar Salad', 24],
-];
+export const WORST_SELLERS: [string, number][] = [];
 
 export const ACCENT_SWATCHES = ['#6d5ef8', '#10b981', '#f43f5e', '#f59e0b'];
 
 export const DEFAULT_ACCENT = '#10b981';
 
-export const INITIAL_MOVEMENTS = [
-  { ts: '2 ชม. ที่แล้ว', type: 'out' as const, item: 'Cappuccino', qty: -3, unit: 'แก้ว' },
-  { ts: '5 ชม. ที่แล้ว', type: 'in' as const, item: 'Milk', qty: 5000, unit: 'ml' },
-  { ts: 'เมื่อวาน', type: 'out' as const, item: 'Croissant', qty: -12, unit: 'ชิ้น' },
-  { ts: '2 วันที่แล้ว', type: 'in' as const, item: 'Espresso Beans', qty: 3000, unit: 'g' },
-];
+export const INITIAL_MOVEMENTS: { ts: string; type: 'in' | 'out'; item: string; qty: number; unit: string }[] = [];
 
 export const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T;

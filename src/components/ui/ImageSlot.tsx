@@ -30,6 +30,21 @@ function writeSlot(id: string, dataUrl: string): void {
 /** Notifies every mounted slot with the same id when one of them is filled. */
 const listeners = new Set<(id: string, dataUrl: string) => void>();
 
+/** Reads a slot's current image outside of a mounted `<ImageSlot>` — e.g. to
+ * mirror the store logo onto the browser tab's favicon. */
+export function getSlot(id: string): string | null {
+  return readSlots()[id] ?? null;
+}
+
+/** Subscribes to future fills of a slot outside of a mounted `<ImageSlot>`. */
+export function subscribeToSlot(id: string, onFill: (dataUrl: string) => void): () => void {
+  const listener = (slotId: string, dataUrl: string) => {
+    if (slotId === id) onFill(dataUrl);
+  };
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
 interface ImageSlotProps {
   id: string;
   placeholder?: string;

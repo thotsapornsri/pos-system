@@ -1,6 +1,7 @@
 import { usePos } from '../store/PosContext';
 import type { Lang, View } from '../types';
 import { initialsOf } from '../lib/format';
+import { useDocumentBranding } from '../hooks/useDocumentBranding';
 import { Icon } from './ui/Icon';
 import { ImageSlot } from './ui/ImageSlot';
 import { Sidebar } from './Sidebar';
@@ -54,6 +55,7 @@ function CurrentView({ view }: { view: View }) {
 export function Shell() {
   const pos = usePos();
   const { t, currentUser } = pos;
+  useDocumentBranding();
   if (!currentUser) return null;
 
   const titles: Record<View, string> = {

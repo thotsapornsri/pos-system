@@ -8,10 +8,10 @@ export function DashboardView() {
   const pos = usePos();
   const { t } = pos;
   const pd = PERIOD_DATA[pos.dashboardPeriod];
-  const maxBar = Math.max(...pd.bars);
+  const maxBar = Math.max(...pd.bars, 1);
   const isOwner = pos.currentUser?.role === 'Owner';
 
-  const denom = pd.cogs + pd.opex + pd.net;
+  const denom = pd.cogs + pd.opex + pd.net || 1;
   const cogsDeg = (pd.cogs / denom) * 360;
   const opexDeg = (pd.opex / denom) * 360;
   const donut = `conic-gradient(#d0453a 0deg ${cogsDeg}deg, #f59e0b ${cogsDeg}deg ${cogsDeg + opexDeg}deg, var(--accent) ${cogsDeg + opexDeg}deg 360deg)`;
@@ -112,6 +112,7 @@ export function DashboardView() {
               </span>
             </div>
           ))}
+          {BEST_SELLERS.length === 0 && <p className="empty">{t.noSalesYet}</p>}
         </div>
         <div className="card card--pad">
           <h3 className="card-title" style={{ margin: 0, marginBottom: 14 }}>
@@ -125,6 +126,7 @@ export function DashboardView() {
               </span>
             </div>
           ))}
+          {WORST_SELLERS.length === 0 && <p className="empty">{t.noSalesYet}</p>}
         </div>
       </div>
     </>
