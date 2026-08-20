@@ -57,10 +57,11 @@ function fieldsFor(modal: CrudModalState, t: Translation): { title: string; fiel
         title: modal.mode === 'add' ? t.addUser : t.usersTable.user,
         fields: [
           { key: 'name', label: t.usersTable.user },
-          // Editing this here wouldn't rename their actual Supabase Auth
-          // login email (that needs auth.updateUser on their own session) —
-          // shown read-only rather than silently doing nothing useful.
-          { key: 'email', label: 'Email', readOnly: true },
+          // Editable only when inviting a new user — editing an existing
+          // user's email here wouldn't rename their actual Supabase Auth
+          // login email (that needs auth.updateUser on their own session),
+          // so it's shown read-only rather than silently doing nothing useful.
+          { key: 'email', label: 'Email', readOnly: modal.mode === 'edit' },
           { key: 'phone', label: t.phone },
           { key: 'role', label: t.usersTable.role, options: ROLE_NAMES.map((r) => ({ value: r, label: t.roles[r] })) },
         ],
@@ -74,6 +75,7 @@ export function CrudModal() {
   if (!modal) return null;
 
   const { title, fields } = fieldsFor(modal, t);
+  const isInvite = modal.type === 'user' && modal.mode === 'add';
 
   return (
     <div className="overlay" style={{ zIndex: 60 }} role="dialog" aria-modal="true" aria-labelledby="crud-title">
@@ -81,7 +83,11 @@ export function CrudModal() {
         className="modal"
         onSubmit={(e) => {
           e.preventDefault();
-          pos.requestConfirm(t.confirmSaveMsg, pos.saveModal);
+          // Inviting a user can fail in ways worth showing inline (duplicate
+          // email, etc.), so it skips the generic confirm-then-close flow —
+          // inviteUser() itself keeps the modal open on failure.
+          if (isInvite) pos.inviteUser();
+          else pos.requestConfirm(t.confirmSaveMsg, pos.saveModal);
         }}
       >
         <h2 id="crud-title" className="modal__title">
@@ -128,12 +134,28 @@ export function CrudModal() {
           })}
         </div>
 
+        {isInvite && pos.inviteError && (
+          <div
+            role="alert"
+            style={{
+              fontSize: 11.5,
+              color: 'var(--danger)',
+              background: 'var(--danger-bg)',
+              padding: '9px 12px',
+              borderRadius: 8,
+              marginBottom: 14,
+            }}
+          >
+            {pos.inviteError}
+          </div>
+        )}
+
         <div className="modal__actions">
-          <button type="button" className="btn btn--neutral" onClick={pos.closeModal}>
+          <button type="button" className="btn btn--neutral" onClick={pos.closeModal} disabled={isInvite && pos.inviteBusy}>
             {t.cancel}
           </button>
-          <button type="submit" className="btn btn--primary">
-            {t.save}
+          <button type="submit" className="btn btn--primary" disabled={isInvite && pos.inviteBusy}>
+            {isInvite && pos.inviteBusy ? t.inviteBusy : t.save}
           </button>
         </div>
       </form>

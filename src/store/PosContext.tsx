@@ -121,6 +121,11 @@ interface PosState {
   loginPassword: string;
   loginError: boolean;
 
+  /** True while an invite-user request is in flight. */
+  inviteBusy: boolean;
+  /** Set on a failed invite so CrudModal can show it inline and stay open. */
+  inviteError: string | null;
+
   lang: Lang;
   view: View;
   sidebarCollapsed: boolean;
@@ -179,6 +184,9 @@ function initialState(): PosState {
     loginEmail: '',
     loginPassword: '',
     loginError: false,
+
+    inviteBusy: false,
+    inviteError: null,
 
     lang: 'th',
     view: 'home',
@@ -273,6 +281,7 @@ export interface PosApi extends PosState {
   closeModal: () => void;
   updateModalField: (field: string, value: string | number) => void;
   saveModal: () => void;
+  inviteUser: () => void;
 
   deleteProduct: (id: number) => void;
   deleteMaterial: (id: string) => void;
@@ -535,9 +544,9 @@ export function PosProvider({ children }: { children: ReactNode }) {
         else await updateMaterialRow(d.id, fields);
         await qc.invalidateQueries({ queryKey: MATERIALS_KEY });
       } else if (type === 'user') {
-        // "Add" isn't reachable — UsersView shows a hint instead of this
-        // modal for adding, since a profiles row needs an existing
-        // auth.users row that only Supabase's admin API can create.
+        // 'add' goes through inviteUser() instead (CrudModal routes there),
+        // since creating a profiles row needs a matching auth.users row that
+        // only api/invite-user.ts's service-role client can create.
         const d = data as unknown as User;
         if (mode === 'edit') await updateProfileRow(d.id, { name: d.name, phone: d.phone, role: d.role });
         await qc.invalidateQueries({ queryKey: PROFILES_KEY });
@@ -550,6 +559,37 @@ export function PosProvider({ children }: { children: ReactNode }) {
       }
     };
     void run().catch((err) => console.error('saveModal failed:', err));
+  };
+
+  // Separate from saveModal: invites can fail in ways worth showing the
+  // Owner inline (duplicate email, etc.), so this keeps the modal open on
+  // failure instead of closing immediately like the generic CRUD flow.
+  const inviteUser = () => {
+    const modal = state.modal;
+    if (!modal || modal.type !== 'user') return;
+    const d = modal.data as unknown as User;
+    set({ inviteBusy: true, inviteError: null });
+
+    const run = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('Not signed in.');
+
+      const res = await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email: d.email, name: d.name, phone: d.phone, role: d.role }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(body.error || t.inviteGenericError);
+
+      set({ modal: null, inviteBusy: false, inviteError: null });
+      await qc.invalidateQueries({ queryKey: PROFILES_KEY });
+    };
+
+    void run().catch((err: unknown) => {
+      set({ inviteBusy: false, inviteError: err instanceof Error ? err.message : t.inviteGenericError });
+    });
   };
 
   /* ---------- deletes ---------- */
@@ -907,6 +947,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
         closeModal,
         updateModalField,
         saveModal,
+        inviteUser,
         deleteProduct,
         deleteMaterial,
         deleteUser,

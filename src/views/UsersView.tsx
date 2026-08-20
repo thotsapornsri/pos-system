@@ -6,11 +6,27 @@ function UsersList() {
   const pos = usePos();
   const { t } = pos;
   const canManage = pos.hasPerm('users');
+  // Inviting is Owner-only regardless of the 'users' permission — matches
+  // api/invite-user.ts's own check, so this button never offers something
+  // the API would then reject.
+  const isOwner = pos.currentUser?.role === 'Owner';
   const cols = canManage ? '2fr 1.4fr 1fr 1fr 1fr' : '2fr 1.4fr 1fr 1fr';
 
   return (
     <>
-      {canManage && (
+      {isOwner && (
+        <button
+          type="button"
+          className="btn btn--primary"
+          style={{ marginBottom: 16, fontSize: 13 }}
+          onClick={() =>
+            pos.openModal({ type: 'user', mode: 'add', data: { name: '', email: '', phone: '', role: 'Cashier' } })
+          }
+        >
+          + {t.addUser}
+        </button>
+      )}
+      {canManage && !isOwner && (
         <div
           style={{
             fontSize: 11.5,
