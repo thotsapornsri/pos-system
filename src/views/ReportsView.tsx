@@ -1,6 +1,6 @@
-import { DAILY_SALES, MONTHLY_SALES, YEARLY_SALES } from '../data/seed';
 import { exportCSV, exportPDF } from '../lib/export';
 import { usePos } from '../store/PosContext';
+import { useSalesStats } from '../hooks/useSalesStats';
 import { Icon } from '../components/ui/Icon';
 
 function ReportTable({
@@ -77,9 +77,10 @@ export function ReportsView() {
   const showFull = pos.currentUser?.role !== 'Cashier';
   const tab = (pos.reportTab === 'monthly' || pos.reportTab === 'yearly') && !showFull ? 'daily' : pos.reportTab;
 
-  const dailyRows = DAILY_SALES.map(([d, rev, ord]) => [d, ord, pos.fmt(rev)]);
-  const monthlyRows = MONTHLY_SALES.map(([m, rev]) => [m, pos.fmt(rev)]);
-  const yearlyRows = YEARLY_SALES.map(([y, rev]) => [y, pos.fmt(rev)]);
+  const stats = useSalesStats();
+  const dailyRows = stats.dailyRows.map(([d, rev, ord]) => [d, ord, pos.fmt(rev)]);
+  const monthlyRows = stats.monthlyRows.map(([m, rev]) => [m, pos.fmt(rev)]);
+  const yearlyRows = stats.yearlyRows.map(([y, rev]) => [y, pos.fmt(rev)]);
   const stockRows = pos.products.map((p) => [p.name, `${p.stock} ${p.unit}`, pos.fmt(p.price * p.stock)]);
   const movementRows = pos.movements.slice(0, 20);
 

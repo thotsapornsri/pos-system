@@ -120,16 +120,10 @@ export const SALES_ORDERS: SalesOrder[] = [
 
 export const GOODS_RECEIPTS: GoodsReceipt[] = [];
 
-export const DAILY_SALES: [string, number, number][] = [];
-
-export const MONTHLY_SALES: [string, number][] = [];
-
-export const YEARLY_SALES: [string, number][] = [];
-
 export type PeriodKey = 'day' | 'month' | 'year';
 export type KpiKey = 'revenue' | 'orders' | 'avgOrder' | 'grossProfit';
 
-interface PeriodData {
+export interface PeriodData {
   kpis: [KpiKey, number | string, number][];
   bars: number[];
   barLabels: string[];
@@ -137,31 +131,6 @@ interface PeriodData {
   opex: number;
   net: number;
 }
-
-export const PERIOD_DATA: Record<PeriodKey, PeriodData> = {
-  day: {
-    kpis: [['revenue', 0, 0], ['orders', '0', 0], ['avgOrder', 0, 0], ['grossProfit', 0, 0]],
-    bars: [0, 0, 0, 0, 0, 0, 0],
-    barLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    cogs: 0, opex: 0, net: 0,
-  },
-  month: {
-    kpis: [['revenue', 0, 0], ['orders', '0', 0], ['avgOrder', 0, 0], ['grossProfit', 0, 0]],
-    bars: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    barLabels: ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'],
-    cogs: 0, opex: 0, net: 0,
-  },
-  year: {
-    kpis: [['revenue', 0, 0], ['orders', '0', 0], ['avgOrder', 0, 0], ['grossProfit', 0, 0]],
-    bars: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    barLabels: ["'24", "'25", "'26", '', '', '', '', '', '', '', '', ''],
-    cogs: 0, opex: 0, net: 0,
-  },
-};
-
-export const BEST_SELLERS: [string, number][] = [];
-
-export const WORST_SELLERS: [string, number][] = [];
 
 export const ACCENT_SWATCHES = ['#6d5ef8', '#10b981', '#f43f5e', '#f59e0b'];
 

@@ -27,12 +27,13 @@ export function PaymentModal() {
   if (!pos.paymentOpen) return null;
 
   const pay = (method: 'cash' | 'card') => () => {
-    pos.completeSale();
+    const ref = newSaleRef();
+    pos.completeSale(method, ref);
     pos.set({
       paymentStep: 'success',
       paymentMethodKey: method,
       saleCompletedAt: new Date().toISOString(),
-      saleRef: newSaleRef(),
+      saleRef: ref,
     });
   };
 
@@ -96,13 +97,14 @@ export function PaymentModal() {
                     className={`txn${pos.matchedTxnId === tx.id ? ' txn--matched' : ''}`}
                     onClick={() => {
                       if (!matches) return;
-                      pos.completeSale();
+                      const ref = newSaleRef();
+                      pos.completeSale('bank', ref);
                       pos.set({
                         matchedTxnId: tx.id,
                         paymentStep: 'success',
                         paymentMethodKey: 'bank',
                         saleCompletedAt: new Date().toISOString(),
-                        saleRef: newSaleRef(),
+                        saleRef: ref,
                       });
                     }}
                   >

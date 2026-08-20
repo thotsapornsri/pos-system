@@ -60,6 +60,7 @@ import {
   useToggleFeatureMutation,
   useUpdateAccentMutation,
 } from './queries/useStoreSettings';
+import { SALES_KEY, insertSale, useSalesQuery, type Sale } from './queries/useSales';
 import type {
   Cart,
   ConfirmAction,
@@ -266,6 +267,7 @@ export interface PosApi extends PosState {
   vendors: Vendor[];
   users: User[];
   bomRecipes: Recipe[];
+  sales: Sale[];
   rolePermissions: RolePermissions;
   storeSettings: StoreSettings;
   accent: string;
@@ -278,7 +280,7 @@ export interface PosApi extends PosState {
 
   addToCart: (id: number) => void;
   decQty: (id: number) => void;
-  completeSale: () => void;
+  completeSale: (paymentMethod: 'cash' | 'card' | 'bank', ref: string) => void;
 
   requestConfirm: (message: string, onConfirm: () => void) => void;
   confirmYes: () => void;
@@ -359,6 +361,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
   const recipesQuery = useRecipesQuery();
   const rolePermissionsQuery = useRolePermissionsQuery();
   const storeSettingsQuery = useStoreSettingsQuery();
+  const salesQuery = useSalesQuery();
 
   const updateRecipeMutation = useUpdateRecipeMutation();
   const updateIngredientMutation = useUpdateIngredientMutation();
@@ -371,6 +374,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
   const vendors = vendorsQuery.data ?? [];
   const users = profilesQuery.data ?? [];
   const bomRecipes = recipesQuery.data ?? [];
+  const sales = salesQuery.data ?? [];
   const rolePermissions =
     rolePermissionsQuery.data ?? ({ Owner: [], Manager: [], Cashier: [], Viewer: [] } as RolePermissions);
   const storeSettings = storeSettingsQuery.data?.storeSettings ?? { name: '', businessType: '', currency: 'THB' as const, taxRate: 0 };
@@ -395,7 +399,8 @@ export function PosProvider({ children }: { children: ReactNode }) {
       profilesQuery.error ||
       recipesQuery.error ||
       rolePermissionsQuery.error ||
-      storeSettingsQuery.error)?.message ?? null;
+      storeSettingsQuery.error ||
+      salesQuery.error)?.message ?? null;
 
   const hasPerm = (key: PermissionKey): boolean => {
     if (!state.currentUser) return false;
@@ -490,10 +495,11 @@ export function PosProvider({ children }: { children: ReactNode }) {
       return { cart: c };
     });
 
-  // Stock lives in Supabase now, so checkout writes through: compute each
-  // affected product's new stock from the cached query data, persist it,
-  // then refresh. The movements ledger stays in-memory (Phase 3).
-  const completeSale = () => {
+  // Stock and the sale record both live in Supabase now: checkout writes
+  // through to products.stock and inserts a sales/sale_items row (the real
+  // data source Dashboard/Reports read from), refreshing both afterward.
+  // The movements ledger stays in-memory (Phase 3).
+  const completeSale = (paymentMethod: 'cash' | 'card' | 'bank', ref: string) => {
     const cart = state.cart;
     const affected = Object.entries(cart).filter(([, q]) => q > 0);
     const movements: Movement[] = affected.map(([id, qty]) => {
@@ -509,6 +515,18 @@ export function PosProvider({ children }: { children: ReactNode }) {
     )
       .then(() => qc.invalidateQueries({ queryKey: PRODUCTS_KEY }))
       .catch((err) => console.error('completeSale failed to persist stock:', err));
+
+    const lineItems = affected.map(([id, qty]) => {
+      const p = products.find((x) => x.id === Number(id))!;
+      return { productId: p.id, productName: p.name, qty, unitPrice: p.price, lineTotal: p.price * qty };
+    });
+    // product.price is tax-inclusive — see useCartTotals.ts for the same maths.
+    const total = lineItems.reduce((sum, it) => sum + it.lineTotal, 0);
+    const subtotal = total / (1 + storeSettings.taxRate / 100);
+    const tax = total - subtotal;
+    insertSale({ ref, cashierName: state.currentUser?.name ?? '', paymentMethod, subtotal, tax, total, items: lineItems })
+      .then(() => qc.invalidateQueries({ queryKey: SALES_KEY }))
+      .catch((err) => console.error('completeSale failed to persist sale record:', err));
   };
 
   /* ---------- confirm dialog ---------- */
@@ -937,6 +955,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
         vendors,
         users,
         bomRecipes,
+        sales,
         rolePermissions,
         storeSettings,
         accent,

@@ -1,5 +1,6 @@
-import { BEST_SELLERS, PERIOD_DATA, WORST_SELLERS, type PeriodKey } from '../data/seed';
+import type { PeriodKey } from '../data/seed';
 import { usePos } from '../store/PosContext';
+import { useSalesStats } from '../hooks/useSalesStats';
 import { Icon } from '../components/ui/Icon';
 
 const PERIODS: PeriodKey[] = ['day', 'month', 'year'];
@@ -7,7 +8,8 @@ const PERIODS: PeriodKey[] = ['day', 'month', 'year'];
 export function DashboardView() {
   const pos = usePos();
   const { t } = pos;
-  const pd = PERIOD_DATA[pos.dashboardPeriod];
+  const stats = useSalesStats();
+  const pd = stats[pos.dashboardPeriod];
   const maxBar = Math.max(...pd.bars, 1);
   const isOwner = pos.currentUser?.role === 'Owner';
 
@@ -102,7 +104,7 @@ export function DashboardView() {
           <h3 className="card-title" style={{ margin: 0, marginBottom: 14 }}>
             {t.bestSellers}
           </h3>
-          {BEST_SELLERS.map(([name, qty], i) => (
+          {stats.bestSellers.map(([name, qty], i) => (
             <div key={name} className="rank-row">
               <span style={{ color: 'var(--text-muted)' }}>
                 {i + 1}. {name}
@@ -112,13 +114,13 @@ export function DashboardView() {
               </span>
             </div>
           ))}
-          {BEST_SELLERS.length === 0 && <p className="empty">{t.noSalesYet}</p>}
+          {stats.bestSellers.length === 0 && <p className="empty">{t.noSalesYet}</p>}
         </div>
         <div className="card card--pad">
           <h3 className="card-title" style={{ margin: 0, marginBottom: 14 }}>
             {t.needsAttention}
           </h3>
-          {WORST_SELLERS.map(([name, qty]) => (
+          {stats.worstSellers.map(([name, qty]) => (
             <div key={name} className="rank-row">
               <span style={{ color: 'var(--text-muted)' }}>{name}</span>
               <span style={{ fontWeight: 700, color: 'var(--danger)' }}>
@@ -126,7 +128,7 @@ export function DashboardView() {
               </span>
             </div>
           ))}
-          {WORST_SELLERS.length === 0 && <p className="empty">{t.noSalesYet}</p>}
+          {stats.worstSellers.length === 0 && <p className="empty">{t.noSalesYet}</p>}
         </div>
       </div>
     </>

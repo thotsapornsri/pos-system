@@ -1,11 +1,12 @@
-import { PERIOD_DATA } from '../data/seed';
 import { usePos } from '../store/PosContext';
+import { useSalesStats } from '../hooks/useSalesStats';
 import type { PermissionKey } from '../types';
 import { Icon, type IconName } from '../components/ui/Icon';
 
 export function HomeView() {
   const pos = usePos();
   const { t } = pos;
+  const stats = useSalesStats();
 
   const tiles: { perm: PermissionKey; icon: IconName; label: string; stat: string; go: () => void }[] = [
     { perm: 'sales', icon: 'sales', label: t.nav.sales, go: () => pos.setView('sales'), stat: `${Object.values(pos.cart).reduce((a, b) => a + b, 0)} ${t.items}` },
@@ -13,7 +14,7 @@ export function HomeView() {
     { perm: 'bom', icon: 'bom', label: t.nav.bom, go: () => pos.setView('bom'), stat: `${pos.bomRecipes.length} recipes` },
     { perm: 'procurement', icon: 'cart', label: t.purchasing, go: () => pos.set({ expandedMenu: 'purchasing', view: 'purchasing' }), stat: `${pos.purchaseRequests.length + pos.purchaseOrders.length} docs` },
     { perm: 'procurement', icon: 'sales', label: t.selling, go: () => pos.setView('selling'), stat: `${pos.salesOrders.length} docs` },
-    { perm: 'dashboard', icon: 'dashboard', label: t.nav.dashboard, go: () => pos.setView('dashboard'), stat: pos.fmt(PERIOD_DATA.day.kpis[0][1] as number) },
+    { perm: 'dashboard', icon: 'dashboard', label: t.nav.dashboard, go: () => pos.setView('dashboard'), stat: pos.fmt(stats.day.kpis[0][1] as number) },
     { perm: 'salesReport', icon: 'doc', label: t.nav.reports, go: () => pos.set({ expandedMenu: 'reports', view: 'reports' }), stat: `${pos.movements.length} logs` },
     { perm: 'users', icon: 'users', label: t.nav.users, go: () => pos.set({ expandedMenu: 'users', view: 'users' }), stat: `${pos.users.length} users` },
     { perm: 'settings', icon: 'settings', label: t.nav.settings, go: () => pos.setView('settings'), stat: pos.storeSettings.name },
