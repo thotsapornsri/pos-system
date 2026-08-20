@@ -104,9 +104,14 @@ const en = {
   takePayment: 'Take Payment', totalDue: 'Total due', cancel: 'Cancel',
   confirmBank: 'Confirm Bank Transfer', matchStatement: 'Match the incoming statement to this order',
   paymentMethods: { cash: 'Cash', card: 'Card', bank: 'Bank Transfer' },
-  paymentConfirmed: 'Payment Confirmed', receivedVia: 'received via bank transfer',
+  paymentConfirmed: 'Payment Confirmed',
+  // Was a static "received via bank transfer" regardless of the method
+  // actually used — now takes the real method label.
+  receivedVia: (method: string) => `received via ${method}`,
   printReceipt: 'Print Receipt', newOrder: 'New Order', save: 'Save',
   justNow: 'Just now',
+  receiptCashier: 'Cashier', receiptRef: 'Ref', receiptPaidVia: 'Paid via',
+  receiptThankYou: 'Thank you, come again!',
   bomProcessed: (name: string, qty: number, unit: string) => `Recipe processed: +${qty} ${unit} added to ${name}`,
 };
 
@@ -216,8 +221,11 @@ const th: Translation = {
   takePayment: 'รับชำระเงิน', totalDue: 'ยอดที่ต้องชำระ', cancel: 'ยกเลิก',
   confirmBank: 'ยืนยันการโอนเงิน', matchStatement: 'จับคู่รายการโอนกับออเดอร์นี้',
   paymentMethods: { cash: 'เงินสด', card: 'บัตร', bank: 'โอนเงินผ่านธนาคาร' },
-  paymentConfirmed: 'ชำระเงินสำเร็จ', receivedVia: 'ได้รับชำระผ่านการโอนเงิน',
+  paymentConfirmed: 'ชำระเงินสำเร็จ',
+  receivedVia: (method: string) => `ได้รับชำระผ่าน${method}`,
   printReceipt: 'พิมพ์ใบเสร็จ', newOrder: 'ออเดอร์ใหม่', save: 'บันทึก',
+  receiptCashier: 'แคชเชียร์', receiptRef: 'เลขที่อ้างอิง', receiptPaidVia: 'ชำระด้วย',
+  receiptThankYou: 'ขอบคุณที่ใช้บริการ',
   justNow: 'เมื่อครู่นี้',
   bomProcessed: (name: string, qty: number, unit: string) => `ผูกสูตรสำเร็จ: เพิ่ม ${name} จำนวน ${qty} ${unit}`,
 };

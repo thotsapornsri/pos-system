@@ -165,6 +165,10 @@ interface PosState {
   paymentOpen: boolean;
   paymentStep: PaymentStep;
   matchedTxnId: string | null;
+  /** Set when a sale completes — drives the printable receipt. */
+  paymentMethodKey: 'cash' | 'card' | 'bank' | null;
+  saleCompletedAt: string | null;
+  saleRef: string | null;
 
   dashboardPeriod: PeriodKey;
   selectedRole: RoleName;
@@ -226,6 +230,9 @@ function initialState(): PosState {
     paymentOpen: false,
     paymentStep: 'method',
     matchedTxnId: null,
+    paymentMethodKey: null,
+    saleCompletedAt: null,
+    saleRef: null,
 
     dashboardPeriod: 'day',
     selectedRole: 'Owner',

@@ -1,6 +1,14 @@
 import { useMemo } from 'react';
 import { useCartTotals } from '../../hooks/useCartTotals';
 import { usePos } from '../../store/PosContext';
+import { Receipt } from '../Receipt';
+
+/** Short, non-sequential reference shown on the receipt — not a real doc
+ * number (that needs server-side numbering, Phase 3), just enough for a
+ * customer to reference this specific printout. */
+function newSaleRef(): string {
+  return Date.now().toString(36).toUpperCase().slice(-6);
+}
 
 export function PaymentModal() {
   const pos = usePos();
@@ -18,9 +26,14 @@ export function PaymentModal() {
 
   if (!pos.paymentOpen) return null;
 
-  const pay = () => {
+  const pay = (method: 'cash' | 'card') => () => {
     pos.completeSale();
-    pos.set({ paymentStep: 'success' });
+    pos.set({
+      paymentStep: 'success',
+      paymentMethodKey: method,
+      saleCompletedAt: new Date().toISOString(),
+      saleRef: newSaleRef(),
+    });
   };
 
   return (
@@ -36,8 +49,8 @@ export function PaymentModal() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
               {[
-                { name: t.paymentMethods.cash, icon: '$', onClick: pay },
-                { name: t.paymentMethods.card, icon: '⎯', onClick: pay },
+                { name: t.paymentMethods.cash, icon: '$', onClick: pay('cash') },
+                { name: t.paymentMethods.card, icon: '⎯', onClick: pay('card') },
                 { name: t.paymentMethods.bank, icon: 'B', onClick: () => pos.set({ paymentStep: 'matching' }) },
               ].map((m) => (
                 <button key={m.name} type="button" className="paymethod" onClick={m.onClick}>
@@ -84,7 +97,13 @@ export function PaymentModal() {
                     onClick={() => {
                       if (!matches) return;
                       pos.completeSale();
-                      pos.set({ matchedTxnId: tx.id, paymentStep: 'success' });
+                      pos.set({
+                        matchedTxnId: tx.id,
+                        paymentStep: 'success',
+                        paymentMethodKey: 'bank',
+                        saleCompletedAt: new Date().toISOString(),
+                        saleRef: newSaleRef(),
+                      });
                     }}
                   >
                     <span>
@@ -126,9 +145,11 @@ export function PaymentModal() {
                 {t.paymentConfirmed}
               </h2>
               <p style={{ fontSize: 13, color: '#8a8a9a', margin: 0, marginBottom: 22 }}>
-                {pos.fmt(total)} {t.receivedVia}
+                {pos.fmt(total)} {t.receivedVia(t.paymentMethods[pos.paymentMethodKey ?? 'cash'])}
               </p>
             </div>
+            {/* Hidden on screen, shown only in @media print — see styles.css */}
+            <Receipt />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <button type="button" className="btn btn--primary btn--block" style={{ padding: 13, fontSize: 13.5 }} onClick={() => window.print()}>
                 {t.printReceipt}
@@ -137,7 +158,17 @@ export function PaymentModal() {
                 type="button"
                 className="btn btn--neutral btn--block"
                 style={{ padding: 13, fontSize: 13.5 }}
-                onClick={() => pos.set({ paymentOpen: false, cart: {}, matchedTxnId: null, paymentStep: 'method' })}
+                onClick={() =>
+                  pos.set({
+                    paymentOpen: false,
+                    cart: {},
+                    matchedTxnId: null,
+                    paymentStep: 'method',
+                    paymentMethodKey: null,
+                    saleCompletedAt: null,
+                    saleRef: null,
+                  })
+                }
               >
                 {t.newOrder}
               </button>

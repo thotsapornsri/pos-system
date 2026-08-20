@@ -1127,6 +1127,75 @@ button {
   .viewport {
     overflow: visible;
   }
+
+  /* Thermal receipt (58mm) — only the .receipt block prints when the
+     payment modal is open; everything else in that modal (success icon,
+     buttons) is suppressed for the printout. */
+  .modal--pay > *:not(.receipt) {
+    display: none !important;
+  }
+
+  .modal--pay {
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    width: 58mm;
+  }
+
+  .receipt {
+    display: block !important;
+    width: 58mm;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    line-height: 1.45;
+    color: #000;
+  }
+}
+
+.receipt {
+  display: none;
+}
+
+.receipt__store {
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.receipt__muted {
+  text-align: center;
+  color: #444;
+}
+
+.receipt__center {
+  text-align: center;
+}
+
+.receipt__divider {
+  border-top: 1px dashed #000;
+  margin: 6px 0;
+}
+
+.receipt__item {
+  margin-bottom: 3px;
+}
+
+.receipt__item-row,
+.receipt__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.receipt__row--total {
+  font-weight: 700;
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+
+.receipt__thanks {
+  text-align: center;
+  margin-top: 10px;
 }
 
 /* ============================================================
