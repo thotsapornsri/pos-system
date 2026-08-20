@@ -8,6 +8,9 @@ export function SalesView() {
   const pos = usePos();
   const { t } = pos;
   const { cartLines, cartCount, subtotal, tax, total, taxRate } = useCartTotals();
+  // Product prices are tax-inclusive; back the per-unit tax portion out of
+  // each price so it can be shown alongside it (e.g. "฿12.00 · incl. tax ฿0.79").
+  const unitTax = (price: number) => price - price / (1 + taxRate / 100);
 
   const query = pos.searchQuery.trim().toLowerCase();
   const visible = pos.products.filter(
@@ -68,7 +71,14 @@ export function SalesView() {
                     {p.description}
                   </span>
                   <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent)' }}>{pos.fmt(p.price)}</span>
+                    <span>
+                      <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: 'var(--accent)' }}>
+                        {pos.fmt(p.price)}
+                      </span>
+                      <span style={{ display: 'block', fontSize: 9.5, color: 'var(--text-dim)' }}>
+                        {t.inclTax(pos.fmt(unitTax(p.price)))}
+                      </span>
+                    </span>
                     <span
                       style={{
                         width: 26, height: 26, borderRadius: '50%', background: 'var(--bg-chip)',
@@ -138,7 +148,9 @@ export function SalesView() {
                     <div className="truncate" style={{ fontSize: 12.5, fontWeight: 700 }}>
                       {line.product.name}
                     </div>
-                    <div style={{ fontSize: 11.5, color: '#8a8a9a' }}>{pos.fmt(line.product.price)}</div>
+                    <div style={{ fontSize: 11.5, color: '#8a8a9a' }}>
+                      {pos.fmt(line.product.price)} · {t.inclTax(pos.fmt(unitTax(line.product.price)))}
+                    </div>
                   </div>
                   <div className="stepper">
                     <button type="button" onClick={() => pos.decQty(line.product.id)} aria-label={`−1 ${line.product.name}`}>
