@@ -1107,7 +1107,7 @@ button {
 @media print {
   .sidebar,
   .shellbar,
-  .topbar,
+  .main,
   .modal__actions {
     display: none !important;
   }
