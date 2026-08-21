@@ -1,4 +1,3 @@
-import { CATS } from '../data/seed';
 import { usePos } from '../store/PosContext';
 import { Icon } from '../components/ui/Icon';
 import { ImageSlot } from '../components/ui/ImageSlot';
@@ -36,16 +35,25 @@ export function SalesView() {
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-          {CATS.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              className={`pill${pos.activeCategory === cat ? ' pill--active' : ''}`}
-              onClick={() => pos.set({ activeCategory: cat })}
-            >
-              {t.categories[cat]}
-            </button>
-          ))}
+          <button
+            type="button"
+            className={`pill${pos.activeCategory === 'All' ? ' pill--active' : ''}`}
+            onClick={() => pos.set({ activeCategory: 'All' })}
+          >
+            {t.allCategories}
+          </button>
+          {pos.categories
+            .filter((c) => c.visible)
+            .map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className={`pill${pos.activeCategory === c.name ? ' pill--active' : ''}`}
+                onClick={() => pos.set({ activeCategory: c.name })}
+              >
+                {c.name}
+              </button>
+            ))}
         </div>
 
         <div className="pos__grid">
@@ -117,7 +125,7 @@ export function SalesView() {
                         {t.stockCol}: {p.stock} {p.unit}
                       </span>
                       <span>
-                        {t.categoryCol}: {t.categories[p.cat]}
+                        {t.categoryCol}: {p.cat}
                       </span>
                     </div>
                   </div>

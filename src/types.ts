@@ -4,6 +4,7 @@ export type View =
   | 'home'
   | 'sales'
   | 'products'
+  | 'categories'
   | 'bom'
   | 'dashboard'
   | 'reports'
@@ -28,16 +29,22 @@ export type PermissionKey =
   | 'vendor'
   | 'prApprove';
 
-export type Category = 'All' | 'Beverages' | 'Bakery' | 'Food' | 'Retail';
-/** Categories a product can actually belong to ('All' is a filter-only pseudo-category). */
-export type ProductCategory = Exclude<Category, 'All'>;
+/** A store-managed product category — created/renamed/hidden from the
+ * Categories page. Products link back by name (soft reference), not id. */
+export interface Category {
+  id: string;
+  name: string;
+  visible: boolean;
+  position: number;
+}
 
 export interface Product {
   id: number;
   code: string;
   name: string;
   price: number;
-  cat: ProductCategory;
+  /** A category name (Category.name), not a fixed enum — see Category. */
+  cat: string;
   grad: string;
   initial: string;
   stock: number;
@@ -210,7 +217,7 @@ export type PrintDocRef =
   | { type: 'so'; doc: SalesOrder }
   | { type: 'gr'; doc: GoodsReceipt };
 
-export type ModalType = 'product' | 'material' | 'user' | 'vendor';
+export type ModalType = 'product' | 'material' | 'user' | 'vendor' | 'category';
 
 export interface CrudModalState {
   type: ModalType;

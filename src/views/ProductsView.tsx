@@ -17,7 +17,7 @@ export function ProductsView() {
     exportCSV(
       'products.csv',
       [t.productCol, t.categoryCol, t.priceCol, t.stockCol, t.unitCol, t.productDescription],
-      rows.map((p) => [p.name, t.categories[p.cat], pos.fmt(p.price), p.stock, p.unit, p.description]),
+      rows.map((p) => [p.name, p.cat, pos.fmt(p.price), p.stock, p.unit, p.description]),
     );
 
   const openAdd = () =>
@@ -27,7 +27,7 @@ export function ProductsView() {
       data: {
         code: `PRD-${String(pos.products.length + 1).padStart(3, '0')}`,
         name: '',
-        cat: 'Beverages',
+        cat: pos.categories[0]?.name ?? '',
         price: 0,
         stock: 0,
         unit: 'ชิ้น',
@@ -104,7 +104,7 @@ export function ProductsView() {
               </div>
             </div>
             <div>
-              <span className="tag">{t.categories[p.cat]}</span>
+              <span className="tag">{p.cat}</span>
             </div>
             <div className="num" style={{ fontWeight: 700 }}>
               {pos.fmt(p.price)}

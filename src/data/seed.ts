@@ -1,9 +1,6 @@
 import type {
-  Category,
   GoodsReceipt,
   Material,
-  Product,
-  ProductCategory,
   PurchaseOrder,
   PurchaseRequest,
   Recipe,
@@ -13,32 +10,6 @@ import type {
   User,
   Vendor,
 } from '../types';
-
-export const CATS: Category[] = ['All', 'Beverages', 'Bakery', 'Food', 'Retail'];
-
-export const CAT_UNITS: Record<ProductCategory, string> = {
-  Beverages: 'แก้ว',
-  Bakery: 'ชิ้น',
-  Food: 'ชิ้น',
-  Retail: 'ชิ้น',
-};
-
-const RAW_PRODUCTS: Omit<Product, 'unit'>[] = [
-  { id: 1, code: 'PRD-001', name: 'Espresso', price: 3.5, cat: 'Beverages', grad: 'linear-gradient(135deg,#8b5e3c,#5a3a24)', initial: 'E', stock: 120, description: 'Single shot of concentrated espresso.' },
-  { id: 2, code: 'PRD-002', name: 'Cappuccino', price: 4.5, cat: 'Beverages', grad: 'linear-gradient(135deg,#c8a27a,#8b5e3c)', initial: 'C', stock: 95, description: 'Espresso with steamed milk and foam.' },
-  { id: 3, code: 'PRD-003', name: 'Iced Latte', price: 5.0, cat: 'Beverages', grad: 'linear-gradient(135deg,#a8794f,#6d4a2f)', initial: 'I', stock: 80, description: 'Chilled espresso with milk over ice.' },
-  { id: 4, code: 'PRD-004', name: 'Matcha Latte', price: 5.5, cat: 'Beverages', grad: 'linear-gradient(135deg,#7fae5e,#4f7a3a)', initial: 'M', stock: 40, description: 'Japanese matcha whisked with steamed milk.' },
-  { id: 5, code: 'PRD-005', name: 'Croissant', price: 3.25, cat: 'Bakery', grad: 'linear-gradient(135deg,#e2b464,#c98f3a)', initial: 'C', stock: 36, description: 'Buttery, flaky French pastry.' },
-  { id: 6, code: 'PRD-006', name: 'Blueberry Muffin', price: 3.75, cat: 'Bakery', grad: 'linear-gradient(135deg,#6f6bab,#4a4780)', initial: 'M', stock: 28, description: 'Soft muffin loaded with blueberries.' },
-  { id: 7, code: 'PRD-007', name: 'Cinnamon Roll', price: 4.0, cat: 'Bakery', grad: 'linear-gradient(135deg,#d99a5b,#a8672f)', initial: 'R', stock: 22, description: 'Rolled pastry with cinnamon sugar glaze.' },
-  { id: 8, code: 'PRD-008', name: 'Avocado Toast', price: 7.5, cat: 'Food', grad: 'linear-gradient(135deg,#6fa678,#3f6f4a)', initial: 'A', stock: 18, description: 'Sourdough toast topped with mashed avocado.' },
-  { id: 9, code: 'PRD-009', name: 'Club Sandwich', price: 8.25, cat: 'Food', grad: 'linear-gradient(135deg,#d18a5c,#a3572e)', initial: 'S', stock: 15, description: 'Triple-decker sandwich with chicken and bacon.' },
-  { id: 10, code: 'PRD-010', name: 'Caesar Salad', price: 8.75, cat: 'Food', grad: 'linear-gradient(135deg,#7fae5e,#4f7a3a)', initial: 'S', stock: 12, description: 'Romaine, parmesan, croutons, caesar dressing.' },
-  { id: 11, code: 'PRD-011', name: 'Ceramic Mug', price: 12.0, cat: 'Retail', grad: 'linear-gradient(135deg,#9a9aab,#5a5a6b)', initial: 'M', stock: 30, description: 'Branded ceramic mug, 350ml.' },
-  { id: 12, code: 'PRD-012', name: 'Coffee Beans 250g', price: 14.0, cat: 'Retail', grad: 'linear-gradient(135deg,#5a3a24,#2e1d12)', initial: 'B', stock: 24, description: 'House-roasted whole bean coffee, 250g bag.' },
-];
-
-export const PRODUCTS: Product[] = RAW_PRODUCTS.map((p) => ({ ...p, unit: CAT_UNITS[p.cat] }));
 
 export const MATERIALS: Material[] = [
   { id: 'm1', code: 'RM-001', name: 'Espresso Beans', stock: 8200, unit: 'g', unitCost: 0.018 },

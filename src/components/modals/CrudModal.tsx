@@ -1,7 +1,7 @@
-import { CATS, ROLE_NAMES } from '../../data/seed';
+import { ROLE_NAMES } from '../../data/seed';
 import type { Translation } from '../../i18n/translations';
 import { usePos } from '../../store/PosContext';
-import type { CrudModalState } from '../../types';
+import type { Category, CrudModalState } from '../../types';
 
 interface FieldDef {
   key: string;
@@ -11,7 +11,7 @@ interface FieldDef {
   readOnly?: boolean;
 }
 
-function fieldsFor(modal: CrudModalState, t: Translation): { title: string; fields: FieldDef[] } {
+function fieldsFor(modal: CrudModalState, t: Translation, categories: Category[]): { title: string; fields: FieldDef[] } {
   switch (modal.type) {
     case 'product':
       return {
@@ -22,13 +22,18 @@ function fieldsFor(modal: CrudModalState, t: Translation): { title: string; fiel
           {
             key: 'cat',
             label: t.categoryCol,
-            options: CATS.filter((c) => c !== 'All').map((c) => ({ value: c, label: t.categories[c] })),
+            options: categories.map((c) => ({ value: c.name, label: c.name })),
           },
           { key: 'price', label: t.priceCol, type: 'number' },
           { key: 'stock', label: t.stockCol, type: 'number' },
           { key: 'unit', label: t.unitCol },
           { key: 'description', label: t.productDescription },
         ],
+      };
+    case 'category':
+      return {
+        title: modal.mode === 'add' ? t.addCategory : t.categoryName,
+        fields: [{ key: 'name', label: t.categoryName }],
       };
     case 'material':
       return {
@@ -71,10 +76,10 @@ function fieldsFor(modal: CrudModalState, t: Translation): { title: string; fiel
 
 export function CrudModal() {
   const pos = usePos();
-  const { t, modal } = pos;
+  const { t, modal, categories } = pos;
   if (!modal) return null;
 
-  const { title, fields } = fieldsFor(modal, t);
+  const { title, fields } = fieldsFor(modal, t, categories);
   const isInvite = modal.type === 'user' && modal.mode === 'add';
 
   return (

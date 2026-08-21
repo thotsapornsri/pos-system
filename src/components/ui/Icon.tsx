@@ -25,6 +25,7 @@ const PATHS = {
   shield: <><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" /><path d="M9.5 12l1.8 1.8L14.5 10" /></>,
   print: <><path d="M6 9V3h12v6" /><rect x="4" y="9" width="16" height="8" rx="1" /><path d="M6 17h12v5H6z" /></>,
   reset: <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /></>,
+  tag: <><path d="M12 2H4a1 1 0 00-1 1v8l10.6 10.6a2 2 0 002.8 0l6.2-6.2a2 2 0 000-2.8L12 2z" /><circle cx="7.5" cy="7.5" r="1.4" /></>,
   chevronRight: <path d="M9 6l6 6-6 6" />,
   chevronDown: <path d="M6 9l6 6 6-6" />,
   chevronLeft: <path d="M15 6l-6 6 6 6" />,

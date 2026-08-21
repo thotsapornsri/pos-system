@@ -9,6 +9,7 @@ import { Sidebar } from './Sidebar';
 import { HomeView } from '../views/HomeView';
 import { SalesView } from '../views/SalesView';
 import { ProductsView } from '../views/ProductsView';
+import { CategoriesView } from '../views/CategoriesView';
 import { BomView } from '../views/BomView';
 import { DashboardView } from '../views/DashboardView';
 import { ReportsView } from '../views/ReportsView';
@@ -33,6 +34,8 @@ function CurrentView({ view }: { view: View }) {
       return <SalesView />;
     case 'products':
       return <ProductsView />;
+    case 'categories':
+      return <CategoriesView />;
     case 'bom':
       return <BomView />;
     case 'dashboard':

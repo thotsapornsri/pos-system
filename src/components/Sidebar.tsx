@@ -110,6 +110,11 @@ export function Sidebar() {
       )}
 
       {gate(
+        'inventory',
+        <NavItem icon="tag" label={t.nav.categories} active={view === 'categories'} collapsed={collapsed} onClick={goto('categories')} />,
+      )}
+
+      {gate(
         'bom',
         <NavItem icon="bom" label={t.nav.bom} active={view === 'bom'} collapsed={collapsed} onClick={goto('bom')} />,
       )}

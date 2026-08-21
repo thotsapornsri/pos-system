@@ -38,6 +38,14 @@ import {
   useMaterialsQuery,
 } from './queries/useMaterials';
 import { VENDORS_KEY, deleteVendorRow, insertVendor, updateVendorRow, useVendorsQuery } from './queries/useVendors';
+import {
+  CATEGORIES_KEY,
+  deleteCategoryRow,
+  insertCategory,
+  updateCategoryRow,
+  useCategoriesQuery,
+  useToggleCategoryVisibleMutation,
+} from './queries/useCategories';
 import { PROFILES_KEY, deleteProfileRow, updateProfileRow, useProfilesQuery } from './queries/useProfiles';
 import {
   RECIPES_KEY,
@@ -63,6 +71,7 @@ import {
 import { SALES_KEY, insertSale, useSalesQuery, type Sale } from './queries/useSales';
 import type {
   Cart,
+  Category,
   ConfirmAction,
   CrudModalState,
   FeatureKey,
@@ -268,6 +277,7 @@ export interface PosApi extends PosState {
   users: User[];
   bomRecipes: Recipe[];
   sales: Sale[];
+  categories: Category[];
   rolePermissions: RolePermissions;
   storeSettings: StoreSettings;
   accent: string;
@@ -296,6 +306,8 @@ export interface PosApi extends PosState {
   deleteMaterial: (id: string) => void;
   deleteUser: (id: string) => void;
   deleteVendor: (id: string) => void;
+  deleteCategory: (id: string) => void;
+  toggleCategoryVisible: (id: string, visible: boolean) => void;
 
   addRecipe: () => void;
   deleteRecipe: (id: string) => void;
@@ -362,12 +374,14 @@ export function PosProvider({ children }: { children: ReactNode }) {
   const rolePermissionsQuery = useRolePermissionsQuery();
   const storeSettingsQuery = useStoreSettingsQuery();
   const salesQuery = useSalesQuery();
+  const categoriesQuery = useCategoriesQuery();
 
   const updateRecipeMutation = useUpdateRecipeMutation();
   const updateIngredientMutation = useUpdateIngredientMutation();
   const toggleRolePermMutation = useToggleRolePermMutation();
   const updateAccentMutation = useUpdateAccentMutation();
   const toggleFeatureMutation = useToggleFeatureMutation();
+  const toggleCategoryVisibleMutation = useToggleCategoryVisibleMutation();
 
   const products = productsQuery.data ?? [];
   const materials = materialsQuery.data ?? [];
@@ -375,6 +389,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
   const users = profilesQuery.data ?? [];
   const bomRecipes = recipesQuery.data ?? [];
   const sales = salesQuery.data ?? [];
+  const categories = categoriesQuery.data ?? [];
   const rolePermissions =
     rolePermissionsQuery.data ?? ({ Owner: [], Manager: [], Cashier: [], Viewer: [] } as RolePermissions);
   const storeSettings = storeSettingsQuery.data?.storeSettings ?? { name: '', businessType: '', currency: 'THB' as const, taxRate: 0 };
@@ -390,7 +405,8 @@ export function PosProvider({ children }: { children: ReactNode }) {
     profilesQuery.isLoading ||
     recipesQuery.isLoading ||
     rolePermissionsQuery.isLoading ||
-    storeSettingsQuery.isLoading;
+    storeSettingsQuery.isLoading ||
+    categoriesQuery.isLoading;
 
   const apiError =
     (productsQuery.error ||
@@ -400,7 +416,8 @@ export function PosProvider({ children }: { children: ReactNode }) {
       recipesQuery.error ||
       rolePermissionsQuery.error ||
       storeSettingsQuery.error ||
-      salesQuery.error)?.message ?? null;
+      salesQuery.error ||
+      categoriesQuery.error)?.message ?? null;
 
   const hasPerm = (key: PermissionKey): boolean => {
     if (!state.currentUser) return false;
@@ -575,12 +592,30 @@ export function PosProvider({ children }: { children: ReactNode }) {
         const d = data as unknown as User;
         if (mode === 'edit') await updateProfileRow(d.id, { name: d.name, phone: d.phone, role: d.role });
         await qc.invalidateQueries({ queryKey: PROFILES_KEY });
-      } else {
+      } else if (type === 'vendor') {
         const d = data as unknown as Vendor;
         const fields = { code: d.code, name: d.name, address: d.address, phone: d.phone, email: d.email };
         if (mode === 'add') await insertVendor(fields);
         else await updateVendorRow(d.id, fields);
         await qc.invalidateQueries({ queryKey: VENDORS_KEY });
+      } else {
+        const d = data as unknown as Category;
+        if (mode === 'add') {
+          await insertCategory(d.name);
+        } else {
+          // Products link back to a category by name (soft reference, same
+          // pattern PR/PO line items use for materialCode) — renaming has to
+          // cascade onto every product still tagged with the old name, or
+          // they'd silently fall out of their category's filter chip.
+          const prevName = categories.find((c) => c.id === d.id)?.name;
+          await updateCategoryRow(d.id, { name: d.name });
+          if (prevName && prevName !== d.name) {
+            const { error } = await supabase.from('products').update({ cat: d.name }).eq('cat', prevName);
+            if (error) throw error;
+            await qc.invalidateQueries({ queryKey: PRODUCTS_KEY });
+          }
+        }
+        await qc.invalidateQueries({ queryKey: CATEGORIES_KEY });
       }
     };
     void run().catch((err) => console.error('saveModal failed:', err));
@@ -644,6 +679,16 @@ export function PosProvider({ children }: { children: ReactNode }) {
         .then(() => qc.invalidateQueries({ queryKey: VENDORS_KEY }))
         .catch((err) => console.error('deleteVendor failed:', err)),
     );
+  // Deleting a category doesn't touch products still tagged with its name —
+  // they just lose that filter chip on the Selling page, same soft-orphan
+  // behavior as deleting a vendor still referenced by a PO's vendorCode.
+  const deleteCategory = (id: string) =>
+    confirmDelete(() =>
+      void deleteCategoryRow(id)
+        .then(() => qc.invalidateQueries({ queryKey: CATEGORIES_KEY }))
+        .catch((err) => console.error('deleteCategory failed:', err)),
+    );
+  const toggleCategoryVisible = (id: string, visible: boolean) => toggleCategoryVisibleMutation.mutate({ id, visible });
 
   /* ---------- BOM ---------- */
   const addRecipe = () => {
@@ -956,6 +1001,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
         users,
         bomRecipes,
         sales,
+        categories,
         rolePermissions,
         storeSettings,
         accent,
@@ -978,6 +1024,8 @@ export function PosProvider({ children }: { children: ReactNode }) {
         deleteMaterial,
         deleteUser,
         deleteVendor,
+        deleteCategory,
+        toggleCategoryVisible,
         addRecipe,
         deleteRecipe,
         updateRecipe,
