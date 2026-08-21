@@ -1112,6 +1112,14 @@ button {
 }
 
 @media print {
+  /* .app is height:100vh and isn't itself hidden by hiding its children
+     below — that leaves a full page-height empty block ahead of the
+     receipt/document in print flow, pushing it down. Collapse it too. */
+  .app {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
   .sidebar,
   .shellbar,
   .main,
@@ -1123,6 +1131,7 @@ button {
     position: static;
     background: none;
     padding: 0;
+    display: block;
   }
 
   .modal--print {
