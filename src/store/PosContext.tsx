@@ -6,20 +6,9 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import {
-  CUSTOMERS,
-  GOODS_RECEIPTS,
-  INITIAL_MOVEMENTS,
-  PERMISSION_KEYS,
-  PURCHASE_ORDERS,
-  PURCHASE_REQUESTS,
-  SALES_ORDERS,
-  clone,
-  type PeriodKey,
-} from '../data/seed';
+import { PERMISSION_KEYS, type PeriodKey } from '../data/seed';
 import { T, type Translation } from '../i18n/translations';
-import { formatMoney, today } from '../lib/format';
-import { uid } from '../lib/id';
+import { formatMoney } from '../lib/format';
 import { supabase } from '../lib/supabaseClient';
 import {
   PRODUCTS_KEY,
@@ -69,6 +58,40 @@ import {
   useUpdateAccentMutation,
 } from './queries/useStoreSettings';
 import { SALES_KEY, insertSale, useSalesQuery, type Sale } from './queries/useSales';
+import {
+  PURCHASE_REQUESTS_KEY,
+  convertPrToPoRpc,
+  deletePrItemRow,
+  insertPrItem,
+  insertPurchaseRequest,
+  updatePrItemRow,
+  updatePurchaseRequestRow,
+  usePurchaseRequestsQuery,
+} from './queries/usePurchaseRequests';
+import {
+  PURCHASE_ORDERS_KEY,
+  deletePoItemRow,
+  deletePoScheduleRow,
+  insertPoItem,
+  insertPoSchedule,
+  insertPurchaseOrder,
+  updatePoItemRow,
+  updatePoScheduleRow,
+  updatePurchaseOrderRow,
+  usePurchaseOrdersQuery,
+} from './queries/usePurchaseOrders';
+import {
+  SALES_ORDERS_KEY,
+  deleteSoItemRow,
+  insertSalesOrder,
+  insertSoItem,
+  updateSalesOrderStatus,
+  updateSoItemRow,
+  useSalesOrdersQuery,
+} from './queries/useSalesOrders';
+import { GOODS_RECEIPTS_KEY, completeGoodsReceiptRpc, useGoodsReceiptsQuery } from './queries/useGoodsReceipts';
+import { MOVEMENTS_KEY, insertMovement, useMovementsQuery } from './queries/useMovements';
+import { nextDocNo } from './queries/useDocNumbering';
 import type {
   Cart,
   Category,
@@ -112,15 +135,6 @@ export interface CurrentUser {
   role: RoleName;
 }
 
-/** Document numbers run on an independent sequence per prefix. Still in-memory — Phase 3 moves this server-side. */
-const DOC_SEQ: Record<string, number> = { PR: 1002, PO: 2002, SO: 3002, GR: 4001 };
-
-function nextDocNo(prefix: string): string {
-  const n = DOC_SEQ[prefix] ?? 1;
-  DOC_SEQ[prefix] = n + 1;
-  return `${prefix}-${n}`;
-}
-
 interface PosState {
   currentUser: CurrentUser | null;
   /** True until the initial Supabase session check resolves — gates the Login/Shell flash on load. */
@@ -144,13 +158,6 @@ interface PosState {
   usersTab: UsersTab;
   procTab: ProcTab;
   bomTab: BomTab;
-
-  // Still in-memory — Phase 3 migrates these.
-  purchaseRequests: PurchaseRequest[];
-  purchaseOrders: PurchaseOrder[];
-  salesOrders: SalesOrder[];
-  goodsReceipts: GoodsReceipt[];
-  movements: Movement[];
 
   prHeaderOpen: boolean;
   prItemsOpen: boolean;
@@ -210,12 +217,6 @@ function initialState(): PosState {
     usersTab: 'list',
     procTab: 'pr',
     bomTab: 'bom',
-
-    purchaseRequests: clone(PURCHASE_REQUESTS),
-    purchaseOrders: clone(PURCHASE_ORDERS),
-    salesOrders: clone(SALES_ORDERS),
-    goodsReceipts: clone(GOODS_RECEIPTS),
-    movements: clone(INITIAL_MOVEMENTS),
 
     prHeaderOpen: true,
     prItemsOpen: true,
@@ -278,6 +279,11 @@ export interface PosApi extends PosState {
   bomRecipes: Recipe[];
   sales: Sale[];
   categories: Category[];
+  purchaseRequests: PurchaseRequest[];
+  purchaseOrders: PurchaseOrder[];
+  salesOrders: SalesOrder[];
+  goodsReceipts: GoodsReceipt[];
+  movements: Movement[];
   rolePermissions: RolePermissions;
   storeSettings: StoreSettings;
   storeId: string | undefined;
@@ -376,6 +382,11 @@ export function PosProvider({ children }: { children: ReactNode }) {
   const storeSettingsQuery = useStoreSettingsQuery();
   const salesQuery = useSalesQuery();
   const categoriesQuery = useCategoriesQuery();
+  const purchaseRequestsQuery = usePurchaseRequestsQuery();
+  const purchaseOrdersQuery = usePurchaseOrdersQuery();
+  const salesOrdersQuery = useSalesOrdersQuery();
+  const goodsReceiptsQuery = useGoodsReceiptsQuery();
+  const movementsQuery = useMovementsQuery();
 
   const updateRecipeMutation = useUpdateRecipeMutation();
   const updateIngredientMutation = useUpdateIngredientMutation();
@@ -391,6 +402,11 @@ export function PosProvider({ children }: { children: ReactNode }) {
   const bomRecipes = recipesQuery.data ?? [];
   const sales = salesQuery.data ?? [];
   const categories = categoriesQuery.data ?? [];
+  const purchaseRequests = purchaseRequestsQuery.data ?? [];
+  const purchaseOrders = purchaseOrdersQuery.data ?? [];
+  const salesOrders = salesOrdersQuery.data ?? [];
+  const goodsReceipts = goodsReceiptsQuery.data ?? [];
+  const movements = movementsQuery.data ?? [];
   const rolePermissions =
     rolePermissionsQuery.data ?? ({ Owner: [], Manager: [], Cashier: [], Viewer: [] } as RolePermissions);
   const storeSettings = storeSettingsQuery.data?.storeSettings ?? { name: '', businessType: '', currency: 'THB' as const, taxRate: 0 };
@@ -418,7 +434,12 @@ export function PosProvider({ children }: { children: ReactNode }) {
       rolePermissionsQuery.error ||
       storeSettingsQuery.error ||
       salesQuery.error ||
-      categoriesQuery.error)?.message ?? null;
+      categoriesQuery.error ||
+      purchaseRequestsQuery.error ||
+      purchaseOrdersQuery.error ||
+      salesOrdersQuery.error ||
+      goodsReceiptsQuery.error ||
+      movementsQuery.error)?.message ?? null;
 
   const hasPerm = (key: PermissionKey): boolean => {
     if (!state.currentUser) return false;
@@ -520,11 +541,14 @@ export function PosProvider({ children }: { children: ReactNode }) {
   const completeSale = (paymentMethod: 'cash' | 'card' | 'bank', ref: string) => {
     const cart = state.cart;
     const affected = Object.entries(cart).filter(([, q]) => q > 0);
-    const movements: Movement[] = affected.map(([id, qty]) => {
-      const p = products.find((x) => x.id === Number(id))!;
-      return { ts: t.justNow, type: 'out', item: p.name, qty: -qty, unit: p.unit };
-    });
-    set((s) => ({ movements: [...movements, ...s.movements] }));
+    void Promise.all(
+      affected.map(([id, qty]) => {
+        const p = products.find((x) => x.id === Number(id));
+        return p ? insertMovement({ type: 'out', item: p.name, qty: -qty, unit: p.unit }) : Promise.resolve();
+      }),
+    )
+      .then(() => qc.invalidateQueries({ queryKey: MOVEMENTS_KEY }))
+      .catch((err) => console.error('completeSale failed to log movement:', err));
     void Promise.all(
       affected.map(([id, qty]) => {
         const p = products.find((x) => x.id === Number(id));
@@ -743,169 +767,205 @@ export function PosProvider({ children }: { children: ReactNode }) {
     });
     const productWrite = setProductStock(outputProduct.id, outputProduct.stock + recipe.batchQty);
 
-    const movements: Movement[] = [
-      { ts: t.justNow, type: 'in', item: outputProduct.name, qty: recipe.batchQty, unit: outputProduct.unit },
+    set({ bomMsg: { id: recipeId, text: t.bomProcessed(outputProduct.name, recipe.batchQty, outputProduct.unit) } });
+
+    const movementWrites = [
+      insertMovement({ type: 'in', item: outputProduct.name, qty: recipe.batchQty, unit: outputProduct.unit }),
       ...recipe.ingredients.map((ing) => {
         const mat = materials.find((m) => m.id === ing.materialId);
-        return { ts: t.justNow, type: 'out' as const, item: mat?.name ?? ing.materialId, qty: -(ing.qty * recipe.batchQty), unit: mat?.unit ?? '' };
+        return insertMovement({ type: 'out', item: mat?.name ?? ing.materialId, qty: -(ing.qty * recipe.batchQty), unit: mat?.unit ?? '' });
       }),
     ];
-    set((s) => ({
-      movements: [...movements, ...s.movements],
-      bomMsg: { id: recipeId, text: t.bomProcessed(outputProduct.name, recipe.batchQty, outputProduct.unit) },
-    }));
+    void Promise.all(movementWrites)
+      .then(() => qc.invalidateQueries({ queryKey: MOVEMENTS_KEY }))
+      .catch((err) => console.error('processRecipe failed to log movement:', err));
 
     void Promise.all([...materialWrites, productWrite])
       .then(() => Promise.all([qc.invalidateQueries({ queryKey: MATERIALS_KEY }), qc.invalidateQueries({ queryKey: PRODUCTS_KEY })]))
       .catch((err) => console.error('processRecipe failed to persist stock:', err));
   };
 
-  /* ---------- purchase requests (still in-memory — Phase 3) ---------- */
-  const addPr = () =>
-    set((s) => {
-      const id = uid('pr');
-      return {
-        purchaseRequests: [
-          ...s.purchaseRequests,
-          { id, no: '', date: today(), requester: s.currentUser?.name ?? '', status: 'draft' as const, items: [{ materialCode: materials[0]?.code ?? '', qty: 1 }] },
-        ],
-        expandedPrId: id,
-      };
-    });
+  /* ---------- purchase requests ---------- */
+  const addPr = () => {
+    void insertPurchaseRequest(state.currentUser?.name ?? '', materials[0]?.code ?? '')
+      .then((id) => {
+        set({ expandedPrId: id });
+        return qc.invalidateQueries({ queryKey: PURCHASE_REQUESTS_KEY });
+      })
+      .catch((err) => console.error('addPr failed:', err));
+  };
 
-  const updatePr = (id: string, p: Patch<PurchaseRequest>) =>
-    set((s) => ({ purchaseRequests: s.purchaseRequests.map((d) => (d.id === id ? { ...d, ...p } : d)) }));
+  const updatePr = (id: string, p: Patch<PurchaseRequest>) => {
+    void updatePurchaseRequestRow(id, p)
+      .then(() => qc.invalidateQueries({ queryKey: PURCHASE_REQUESTS_KEY }))
+      .catch((err) => console.error('updatePr failed:', err));
+  };
 
-  const addPrItem = (id: string) =>
-    set((s) => ({
-      purchaseRequests: s.purchaseRequests.map((d) =>
-        d.id === id ? { ...d, items: [...d.items, { materialCode: materials[0]?.code ?? '', qty: 1 }] } : d,
-      ),
-    }));
+  const addPrItem = (id: string) => {
+    const pr = purchaseRequests.find((d) => d.id === id);
+    void insertPrItem(id, materials[0]?.code ?? '', pr?.items.length ?? 0)
+      .then(() => qc.invalidateQueries({ queryKey: PURCHASE_REQUESTS_KEY }))
+      .catch((err) => console.error('addPrItem failed:', err));
+  };
 
-  const updatePrItem = (id: string, idx: number, p: Patch<PrItem>) =>
-    set((s) => ({
-      purchaseRequests: s.purchaseRequests.map((d) =>
-        d.id === id ? { ...d, items: d.items.map((it, i) => (i === idx ? { ...it, ...p } : it)) } : d,
-      ),
-    }));
+  const updatePrItem = (id: string, idx: number, p: Patch<PrItem>) => {
+    const itemId = purchaseRequests.find((d) => d.id === id)?.itemIds[idx];
+    if (!itemId) return;
+    void updatePrItemRow(itemId, p)
+      .then(() => qc.invalidateQueries({ queryKey: PURCHASE_REQUESTS_KEY }))
+      .catch((err) => console.error('updatePrItem failed:', err));
+  };
 
-  const removePrItem = (id: string, idx: number) =>
-    set((s) => ({
-      purchaseRequests: s.purchaseRequests.map((d) => (d.id === id ? { ...d, items: d.items.filter((_, i) => i !== idx) } : d)),
-    }));
+  const removePrItem = (id: string, idx: number) => {
+    const itemId = purchaseRequests.find((d) => d.id === id)?.itemIds[idx];
+    if (!itemId) return;
+    void deletePrItemRow(itemId)
+      .then(() => qc.invalidateQueries({ queryKey: PURCHASE_REQUESTS_KEY }))
+      .catch((err) => console.error('removePrItem failed:', err));
+  };
 
-  // Document numbers come off a module-level counter, so they are drawn here
-  // rather than inside the updater — an updater may run more than once.
   const savePr = (id: string) => {
-    const no = state.purchaseRequests.find((d) => d.id === id)?.no || nextDocNo('PR');
-    set((s) => ({ purchaseRequests: s.purchaseRequests.map((d) => (d.id === id ? { ...d, no, status: 'pending' as const } : d)) }));
+    const pr = purchaseRequests.find((d) => d.id === id);
+    const run = async () => {
+      const no = pr?.no || (await nextDocNo('PR'));
+      await updatePurchaseRequestRow(id, { no, status: 'pending' });
+      await qc.invalidateQueries({ queryKey: PURCHASE_REQUESTS_KEY });
+    };
+    void run().catch((err) => console.error('savePr failed:', err));
   };
 
   const approvePr = (id: string) => updatePr(id, { status: 'approved' });
   const rejectPr = (id: string) => updatePr(id, { status: 'rejected' });
 
   const convertPrToPo = (pr: PurchaseRequest) => {
-    const no = nextDocNo('PO');
-    const id = uid('po');
-    set((s) => ({
-      purchaseRequests: s.purchaseRequests.map((d) => (d.id === pr.id ? { ...d, status: 'converted' as const } : d)),
-      purchaseOrders: [
-        ...s.purchaseOrders,
-        {
-          id,
-          no,
-          date: today(),
-          poType: 'fromPr' as const,
-          refPrNo: pr.no,
-          vendorCode: vendors[0]?.code ?? '',
-          status: 'ordered' as const,
-          schedule: [],
-          items: pr.items.map((it) => ({ materialCode: it.materialCode, qty: it.qty, price: materials.find((m) => m.code === it.materialCode)?.unitCost ?? 0 })),
-        },
-      ],
-    }));
+    void convertPrToPoRpc(pr.id)
+      .then(() =>
+        Promise.all([
+          qc.invalidateQueries({ queryKey: PURCHASE_REQUESTS_KEY }),
+          qc.invalidateQueries({ queryKey: PURCHASE_ORDERS_KEY }),
+        ]),
+      )
+      .catch((err) => console.error('convertPrToPo failed:', err));
   };
 
-  /* ---------- purchase orders (still in-memory — Phase 3) ---------- */
-  const addPo = () =>
-    set((s) => {
-      const id = uid('po');
-      return {
-        purchaseOrders: [
-          ...s.purchaseOrders,
-          { id, no: '', date: today(), poType: 'noPr' as const, refPrNo: '', vendorCode: vendors[0]?.code ?? '', status: 'draft' as const, items: [{ materialCode: materials[0]?.code ?? '', qty: 1, price: materials[0]?.unitCost ?? 0 }], schedule: [] },
-        ],
-        expandedPoId: id,
-      };
-    });
+  /* ---------- purchase orders ---------- */
+  const addPo = () => {
+    void insertPurchaseOrder(vendors[0]?.code ?? '', materials[0]?.code ?? '', materials[0]?.unitCost ?? 0)
+      .then((id) => {
+        set({ expandedPoId: id });
+        return qc.invalidateQueries({ queryKey: PURCHASE_ORDERS_KEY });
+      })
+      .catch((err) => console.error('addPo failed:', err));
+  };
 
-  const updatePo = (id: string, p: Patch<PurchaseOrder>) =>
-    set((s) => ({ purchaseOrders: s.purchaseOrders.map((d) => (d.id === id ? { ...d, ...p } : d)) }));
+  const updatePo = (id: string, p: Patch<PurchaseOrder>) => {
+    void updatePurchaseOrderRow(id, p)
+      .then(() => qc.invalidateQueries({ queryKey: PURCHASE_ORDERS_KEY }))
+      .catch((err) => console.error('updatePo failed:', err));
+  };
 
-  const addPoItem = (id: string) =>
-    set((s) => ({
-      purchaseOrders: s.purchaseOrders.map((d) =>
-        d.id === id ? { ...d, items: [...d.items, { materialCode: materials[0]?.code ?? '', qty: 1, price: materials[0]?.unitCost ?? 0 }] } : d,
-      ),
-    }));
+  const addPoItem = (id: string) => {
+    const po = purchaseOrders.find((d) => d.id === id);
+    void insertPoItem(id, materials[0]?.code ?? '', materials[0]?.unitCost ?? 0, po?.items.length ?? 0)
+      .then(() => qc.invalidateQueries({ queryKey: PURCHASE_ORDERS_KEY }))
+      .catch((err) => console.error('addPoItem failed:', err));
+  };
 
-  const updatePoItem = (id: string, idx: number, p: Patch<PoItem>) =>
-    set((s) => ({
-      purchaseOrders: s.purchaseOrders.map((d) => (d.id === id ? { ...d, items: d.items.map((it, i) => (i === idx ? { ...it, ...p } : it)) } : d)),
-    }));
+  const updatePoItem = (id: string, idx: number, p: Patch<PoItem>) => {
+    const itemId = purchaseOrders.find((d) => d.id === id)?.itemIds[idx];
+    if (!itemId) return;
+    void updatePoItemRow(itemId, p)
+      .then(() => qc.invalidateQueries({ queryKey: PURCHASE_ORDERS_KEY }))
+      .catch((err) => console.error('updatePoItem failed:', err));
+  };
 
-  const removePoItem = (id: string, idx: number) =>
-    set((s) => ({ purchaseOrders: s.purchaseOrders.map((d) => (d.id === id ? { ...d, items: d.items.filter((_, i) => i !== idx) } : d)) }));
+  const removePoItem = (id: string, idx: number) => {
+    const itemId = purchaseOrders.find((d) => d.id === id)?.itemIds[idx];
+    if (!itemId) return;
+    void deletePoItemRow(itemId)
+      .then(() => qc.invalidateQueries({ queryKey: PURCHASE_ORDERS_KEY }))
+      .catch((err) => console.error('removePoItem failed:', err));
+  };
 
-  const addPoSchedule = (id: string) =>
-    set((s) => ({
-      purchaseOrders: s.purchaseOrders.map((d) =>
-        d.id === id ? { ...d, schedule: [...d.schedule, { materialCode: materials[0]?.code ?? '', startDate: today(), deliveryDate: today(), scheduleQty: 1 }] } : d,
-      ),
-    }));
+  const addPoSchedule = (id: string) => {
+    const po = purchaseOrders.find((d) => d.id === id);
+    void insertPoSchedule(id, materials[0]?.code ?? '', po?.schedule.length ?? 0)
+      .then(() => qc.invalidateQueries({ queryKey: PURCHASE_ORDERS_KEY }))
+      .catch((err) => console.error('addPoSchedule failed:', err));
+  };
 
-  const updatePoScheduleItem = (id: string, idx: number, p: Patch<PoScheduleLine>) =>
-    set((s) => ({
-      purchaseOrders: s.purchaseOrders.map((d) => (d.id === id ? { ...d, schedule: d.schedule.map((sc, i) => (i === idx ? { ...sc, ...p } : sc)) } : d)),
-    }));
+  const updatePoScheduleItem = (id: string, idx: number, p: Patch<PoScheduleLine>) => {
+    const scheduleId = purchaseOrders.find((d) => d.id === id)?.scheduleIds[idx];
+    if (!scheduleId) return;
+    void updatePoScheduleRow(scheduleId, p)
+      .then(() => qc.invalidateQueries({ queryKey: PURCHASE_ORDERS_KEY }))
+      .catch((err) => console.error('updatePoScheduleItem failed:', err));
+  };
 
-  const removePoSchedule = (id: string, idx: number) =>
-    set((s) => ({ purchaseOrders: s.purchaseOrders.map((d) => (d.id === id ? { ...d, schedule: d.schedule.filter((_, i) => i !== idx) } : d)) }));
+  const removePoSchedule = (id: string, idx: number) => {
+    const scheduleId = purchaseOrders.find((d) => d.id === id)?.scheduleIds[idx];
+    if (!scheduleId) return;
+    void deletePoScheduleRow(scheduleId)
+      .then(() => qc.invalidateQueries({ queryKey: PURCHASE_ORDERS_KEY }))
+      .catch((err) => console.error('removePoSchedule failed:', err));
+  };
 
   const savePo = (id: string) => {
-    const no = state.purchaseOrders.find((d) => d.id === id)?.no || nextDocNo('PO');
-    set((s) => ({ purchaseOrders: s.purchaseOrders.map((d) => (d.id === id ? { ...d, no, status: 'ordered' as const } : d)) }));
+    const po = purchaseOrders.find((d) => d.id === id);
+    const run = async () => {
+      const no = po?.no || (await nextDocNo('PO'));
+      await updatePurchaseOrderRow(id, { no, status: 'ordered' });
+      await qc.invalidateQueries({ queryKey: PURCHASE_ORDERS_KEY });
+    };
+    void run().catch((err) => console.error('savePo failed:', err));
   };
 
-  /* ---------- sales orders (still in-memory — Phase 3) ---------- */
+  /* ---------- sales orders ---------- */
   const addSo = () => {
-    const id = uid('so');
-    const no = nextDocNo('SO');
-    set((s) => ({
-      salesOrders: [...s.salesOrders, { id, no, date: today(), customer: CUSTOMERS[0], status: 'draft' as const, items: [{ productId: products[0]?.id ?? 0, qty: 1 }] }],
-      expandedSoId: id,
-    }));
+    const run = async () => {
+      const no = await nextDocNo('SO');
+      const id = await insertSalesOrder(no, 'Walk-in', products[0]?.id ?? 0);
+      set({ expandedSoId: id });
+      await qc.invalidateQueries({ queryKey: SALES_ORDERS_KEY });
+    };
+    void run().catch((err) => console.error('addSo failed:', err));
   };
 
-  const addSoItem = (id: string) =>
-    set((s) => ({
-      salesOrders: s.salesOrders.map((d) => (d.id === id ? { ...d, items: [...d.items, { productId: products[0]?.id ?? 0, qty: 1 }] } : d)),
-    }));
+  const addSoItem = (id: string) => {
+    const so = salesOrders.find((d) => d.id === id);
+    void insertSoItem(id, products[0]?.id ?? 0, so?.items.length ?? 0)
+      .then(() => qc.invalidateQueries({ queryKey: SALES_ORDERS_KEY }))
+      .catch((err) => console.error('addSoItem failed:', err));
+  };
 
-  const updateSoItem = (id: string, idx: number, p: Patch<SoItem>) =>
-    set((s) => ({ salesOrders: s.salesOrders.map((d) => (d.id === id ? { ...d, items: d.items.map((it, i) => (i === idx ? { ...it, ...p } : it)) } : d)) }));
+  const updateSoItem = (id: string, idx: number, p: Patch<SoItem>) => {
+    const itemId = salesOrders.find((d) => d.id === id)?.itemIds[idx];
+    if (!itemId) return;
+    void updateSoItemRow(itemId, p)
+      .then(() => qc.invalidateQueries({ queryKey: SALES_ORDERS_KEY }))
+      .catch((err) => console.error('updateSoItem failed:', err));
+  };
 
-  const removeSoItem = (id: string, idx: number) =>
-    set((s) => ({ salesOrders: s.salesOrders.map((d) => (d.id === id ? { ...d, items: d.items.filter((_, i) => i !== idx) } : d)) }));
+  const removeSoItem = (id: string, idx: number) => {
+    const itemId = salesOrders.find((d) => d.id === id)?.itemIds[idx];
+    if (!itemId) return;
+    void deleteSoItemRow(itemId)
+      .then(() => qc.invalidateQueries({ queryKey: SALES_ORDERS_KEY }))
+      .catch((err) => console.error('removeSoItem failed:', err));
+  };
 
-  const submitSo = (id: string) =>
-    set((s) => ({ salesOrders: s.salesOrders.map((d) => (d.id === id ? { ...d, status: 'confirmed' as const } : d)) }));
+  const submitSo = (id: string) => {
+    void updateSalesOrderStatus(id, 'confirmed')
+      .then(() => qc.invalidateQueries({ queryKey: SALES_ORDERS_KEY }))
+      .catch((err) => console.error('submitSo failed:', err));
+  };
 
-  /* ---------- goods receipt (still in-memory — Phase 3) ---------- */
+  /* ---------- goods receipt ---------- */
+  // selectGrPo/scanReceive stay pure local UI state — nothing is persisted
+  // until completeGoodsReceipt commits the draft via the RPC.
   const selectGrPo = (poId: string) =>
-    set((s) => {
-      const po = s.purchaseOrders.find((p) => p.id === poId);
+    set(() => {
+      const po = purchaseOrders.find((p) => p.id === poId);
       return { grSelectedPo: po ? { poId, lines: po.items.map((it) => ({ materialCode: it.materialCode, ordered: it.qty, received: 0 })) } : null };
     });
 
@@ -919,36 +979,22 @@ export function PosProvider({ children }: { children: ReactNode }) {
       return { grSelectedPo: { ...s.grSelectedPo, lines }, grScanCode: '' };
     });
 
+  // Numbering, the gr_lines insert, the materials.stock bump, and the
+  // movement log entry all happen atomically inside complete_goods_receipt().
   const completeGoodsReceipt = () => {
-    if (!state.grSelectedPo) return;
-    const grNo = nextDocNo('GR');
-    const grId = uid('gr');
-    set((s) => {
-      const draft = s.grSelectedPo;
-      if (!draft) return {};
-      const purchaseOrders = s.purchaseOrders.map((p) => (p.id === draft.poId ? { ...p, status: 'received' as const } : p));
-      const goodsReceipts = [...s.goodsReceipts, { id: grId, no: grNo, date: today(), poId: draft.poId, lines: draft.lines }];
-      const movements: Movement[] = [
-        ...draft.lines.filter((l) => l.received > 0).map((l) => {
-          const mat = materials.find((m) => m.code === l.materialCode);
-          return { ts: t.justNow, type: 'in' as const, item: mat?.name ?? l.materialCode, qty: l.received, unit: mat?.unit ?? '' };
-        }),
-        ...s.movements,
-      ];
-      return { purchaseOrders, goodsReceipts, movements, grSelectedPo: null };
-    });
-    // Received quantities also bump the real materials.stock — Phase 3's
-    // proper RPC will make this atomic with the rest; for now this mirrors
-    // the same pattern completeSale/processRecipe already use.
-    const lines = state.grSelectedPo.lines.filter((l) => l.received > 0);
-    void Promise.all(
-      lines.map((l) => {
-        const mat = materials.find((m) => m.code === l.materialCode);
-        return mat ? setMaterialStock(mat.id, mat.stock + l.received) : Promise.resolve();
-      }),
-    )
-      .then(() => qc.invalidateQueries({ queryKey: MATERIALS_KEY }))
-      .catch((err) => console.error('completeGoodsReceipt failed to persist stock:', err));
+    const draft = state.grSelectedPo;
+    if (!draft) return;
+    void completeGoodsReceiptRpc(draft.poId, draft.lines)
+      .then(() =>
+        Promise.all([
+          qc.invalidateQueries({ queryKey: GOODS_RECEIPTS_KEY }),
+          qc.invalidateQueries({ queryKey: PURCHASE_ORDERS_KEY }),
+          qc.invalidateQueries({ queryKey: MATERIALS_KEY }),
+          qc.invalidateQueries({ queryKey: MOVEMENTS_KEY }),
+        ]),
+      )
+      .then(() => set({ grSelectedPo: null }))
+      .catch((err) => console.error('completeGoodsReceipt failed:', err));
   };
 
   /* ---------- roles / features / settings ---------- */
@@ -977,11 +1023,10 @@ export function PosProvider({ children }: { children: ReactNode }) {
         .catch((err) => console.error('saveSettings failed:', err));
     });
 
-  // Product/material stock now lives in Supabase, so "reset" only clears
-  // what's still local (movements ledger, cart) — resetting real stock back
-  // to seed values would mean bulk-overwriting every row, which isn't
-  // implemented yet. Dashboard/Reports' reset button is scoped down to match.
-  const resetData = () => set({ movements: [], cart: {} });
+  // Every other domain (stock, sales, movements, purchasing/selling docs) is
+  // real data in Supabase now — nothing left to "reset" except the in-progress
+  // cart, which is the only thing that was ever meant to be disposable.
+  const resetData = () => set({ cart: {} });
 
   return (
     <PosContext.Provider
@@ -1003,6 +1048,11 @@ export function PosProvider({ children }: { children: ReactNode }) {
         bomRecipes,
         sales,
         categories,
+        purchaseRequests,
+        purchaseOrders,
+        salesOrders,
+        goodsReceipts,
+        movements,
         rolePermissions,
         storeSettings,
         storeId,
