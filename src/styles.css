@@ -1162,8 +1162,8 @@ button {
     display: block !important;
     width: 100%;
     font-family: 'Courier New', Courier, monospace;
-    font-size: 15px;
-    line-height: 1.6;
+    font-size: 22px;
+    line-height: 1.7;
     color: #000;
     page: receipt;
   }
@@ -1176,7 +1176,7 @@ button {
 .receipt__store {
   text-align: center;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 1.4em;
 }
 
 .receipt__muted {
@@ -1190,11 +1190,11 @@ button {
 
 .receipt__divider {
   border-top: 1px dashed #000;
-  margin: 6px 0;
+  margin: 10px 0;
 }
 
 .receipt__item {
-  margin-bottom: 3px;
+  margin-bottom: 6px;
 }
 
 .receipt__item-row,
@@ -1206,13 +1206,14 @@ button {
 
 .receipt__row--total {
   font-weight: 700;
-  font-size: 12.5px;
-  margin-top: 2px;
+  font-size: 1.3em;
+  margin-top: 4px;
 }
 
 .receipt__thanks {
   text-align: center;
-  margin-top: 10px;
+  margin-top: 16px;
+  font-size: 1.1em;
 }
 
 /* ============================================================
