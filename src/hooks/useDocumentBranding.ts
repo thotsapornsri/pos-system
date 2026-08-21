@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { usePos } from '../store/PosContext';
-import { getSlot, subscribeToSlot } from '../components/ui/ImageSlot';
+import { useImagesQuery } from '../store/queries/useImages';
 
 function setFavicon(href: string): void {
   let link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
@@ -15,15 +15,15 @@ function setFavicon(href: string): void {
 /** Keeps the browser tab's title and favicon in sync with the store's own
  * name/logo (set in Settings) instead of the app's hardcoded demo defaults. */
 export function useDocumentBranding(): void {
-  const { storeSettings } = usePos();
+  const { storeSettings, storeId } = usePos();
+  const imagesQuery = useImagesQuery(storeId);
+  const logo = imagesQuery.data?.['store-logo'];
 
   useEffect(() => {
     document.title = storeSettings.name ? `${storeSettings.name} — POS` : 'POS';
   }, [storeSettings.name]);
 
   useEffect(() => {
-    const existing = getSlot('store-logo');
-    if (existing) setFavicon(existing);
-    return subscribeToSlot('store-logo', setFavicon);
-  }, []);
+    if (logo) setFavicon(`${logo.url}?t=${encodeURIComponent(logo.updatedAt)}`);
+  }, [logo]);
 }

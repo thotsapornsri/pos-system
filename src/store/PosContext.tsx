@@ -280,6 +280,7 @@ export interface PosApi extends PosState {
   categories: Category[];
   rolePermissions: RolePermissions;
   storeSettings: StoreSettings;
+  storeId: string | undefined;
   accent: string;
   featureFlags: Record<FeatureKey, boolean>;
   /** True only on first load per query (React Query semantics) — gates the initial Shell paint. */
@@ -1004,6 +1005,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
         categories,
         rolePermissions,
         storeSettings,
+        storeId,
         accent,
         featureFlags,
         dataLoading,
