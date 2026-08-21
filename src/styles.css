@@ -1104,12 +1104,11 @@ button {
   font-weight: 800;
 }
 
-/* Named page so the receipt gets its own paper size in the print dialog
-   (defaults to A4 otherwise) without changing the PR/PO/SO/GR document
-   print flow, which still wants a normal page size. */
+/* Named page so the receipt gets its own paper size in the print dialog,
+   independent of the PR/PO/SO/GR document print flow (.modal--print). */
 @page receipt {
-  size: 77mm auto;
-  margin: 0;
+  size: A4;
+  margin: 20mm;
 }
 
 @media print {
@@ -1136,7 +1135,7 @@ button {
     overflow: visible;
   }
 
-  /* Thermal receipt (77mm) — only the .receipt block prints when the
+  /* Receipt (full A4 page) — only the .receipt block prints when the
      payment modal is open; everything else in that modal (success icon,
      buttons) is suppressed for the printout. */
   .modal--pay > *:not(.receipt) {
@@ -1147,15 +1146,15 @@ button {
     box-shadow: none;
     border-radius: 0;
     padding: 0;
-    width: 77mm;
+    width: 100%;
   }
 
   .receipt {
     display: block !important;
-    width: 77mm;
+    width: 100%;
     font-family: 'Courier New', Courier, monospace;
-    font-size: 11px;
-    line-height: 1.45;
+    font-size: 15px;
+    line-height: 1.6;
     color: #000;
     page: receipt;
   }

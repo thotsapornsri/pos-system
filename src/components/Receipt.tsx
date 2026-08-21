@@ -2,7 +2,7 @@ import { useCartTotals } from '../hooks/useCartTotals';
 import { usePos } from '../store/PosContext';
 
 /**
- * Thermal-printer receipt (77mm) for the payment success step. Invisible on
+ * Receipt (full A4 page) for the payment success step. Invisible on
  * screen — only rendered via `@media print` (see styles.css's `.receipt`
  * rules, scoped to `.modal--pay`'s children) when the customer's copy is
  * printed. Reads the live cart, which is why this only makes sense while
