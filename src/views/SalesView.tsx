@@ -12,8 +12,12 @@ export function SalesView() {
   const unitTax = (price: number) => price - price / (1 + taxRate / 100);
 
   const query = pos.searchQuery.trim().toLowerCase();
+  // Hiding a category (Categories page) hides its products from the selling
+  // page entirely — including under "All" — not just its own filter chip.
+  const visibleCatNames = new Set(pos.categories.filter((c) => c.visible).map((c) => c.name));
   const visible = pos.products.filter(
     (p) =>
+      visibleCatNames.has(p.cat) &&
       (pos.activeCategory === 'All' || p.cat === pos.activeCategory) &&
       (!query || p.name.toLowerCase().includes(query)),
   );
