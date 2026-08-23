@@ -9,14 +9,14 @@ export const ROLE_COLORS: Record<RoleName, [string, string]> = {
 
 export const PERMISSION_KEYS = [
   'sales', 'orders', 'inventory', 'bom', 'dashboard', 'users',
-  'settings', 'reports', 'salesReport', 'procurement', 'vendor', 'prApprove',
+  'settings', 'reports', 'salesReport', 'procurement', 'vendor', 'prApprove', 'cashbook',
 ] as const;
 
 export const DEFAULT_ROLE_PERMS: RolePermissions = {
   Owner: PERMISSION_KEYS.map(() => true),
-  Manager: [true, true, true, true, true, false, false, true, true, true, true, true],
-  Cashier: [true, true, false, false, false, false, false, false, true, false, false, false],
-  Viewer: [false, false, false, false, true, false, false, true, false, false, false, false],
+  Manager: [true, true, true, true, true, false, false, true, true, true, true, true, true],
+  Cashier: [true, true, false, false, false, false, false, false, true, false, false, false, false],
+  Viewer: [false, false, false, false, true, false, false, true, false, false, false, false, false],
 };
 
 export const ROLE_NAMES = Object.keys(DEFAULT_ROLE_PERMS) as RoleName[];

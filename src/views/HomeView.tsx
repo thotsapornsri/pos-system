@@ -15,6 +15,7 @@ export function HomeView() {
     { perm: 'procurement', icon: 'cart', label: t.purchasing, go: () => pos.set({ expandedMenu: 'purchasing', view: 'purchasing' }), stat: `${pos.purchaseRequests.length + pos.purchaseOrders.length} docs` },
     { perm: 'procurement', icon: 'sales', label: t.selling, go: () => pos.setView('selling'), stat: `${pos.salesOrders.length} docs` },
     { perm: 'dashboard', icon: 'dashboard', label: t.nav.dashboard, go: () => pos.setView('dashboard'), stat: pos.fmt(stats.day.kpis[0][1] as number) },
+    { perm: 'cashbook', icon: 'wallet', label: t.nav.cashbook, go: () => pos.setView('cashbook'), stat: `${pos.cashEntries.length} ${t.items}` },
     { perm: 'salesReport', icon: 'doc', label: t.nav.reports, go: () => pos.set({ expandedMenu: 'reports', view: 'reports' }), stat: `${pos.movements.length} logs` },
     { perm: 'users', icon: 'users', label: t.nav.users, go: () => pos.set({ expandedMenu: 'users', view: 'users' }), stat: `${pos.users.length} users` },
     { perm: 'settings', icon: 'settings', label: t.nav.settings, go: () => pos.setView('settings'), stat: pos.storeSettings.name },

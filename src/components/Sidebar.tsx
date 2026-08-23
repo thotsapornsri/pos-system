@@ -150,6 +150,11 @@ export function Sidebar() {
       )}
 
       {gate(
+        'cashbook',
+        <NavItem icon="wallet" label={t.nav.cashbook} active={view === 'cashbook'} collapsed={collapsed} onClick={goto('cashbook')} />,
+      )}
+
+      {gate(
         'salesReport',
         <>
           <NavItem

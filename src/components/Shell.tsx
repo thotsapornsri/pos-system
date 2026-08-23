@@ -17,6 +17,7 @@ import { UsersView } from '../views/UsersView';
 import { SettingsView } from '../views/SettingsView';
 import { SellingView } from '../views/SellingView';
 import { PurchasingView } from '../views/purchasing/PurchasingView';
+import { CashbookView } from '../views/CashbookView';
 
 import { ConfirmModal } from './modals/ConfirmModal';
 import { CrudModal } from './modals/CrudModal';
@@ -50,6 +51,8 @@ function CurrentView({ view }: { view: View }) {
       return <PurchasingView />;
     case 'selling':
       return <SellingView />;
+    case 'cashbook':
+      return <CashbookView />;
     case 'home':
       return <HomeView />;
   }

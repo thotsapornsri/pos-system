@@ -11,7 +11,8 @@ export type View =
   | 'users'
   | 'settings'
   | 'purchasing'
-  | 'selling';
+  | 'selling'
+  | 'cashbook';
 
 export type RoleName = 'Owner' | 'Manager' | 'Cashier' | 'Viewer';
 
@@ -27,7 +28,8 @@ export type PermissionKey =
   | 'salesReport'
   | 'procurement'
   | 'vendor'
-  | 'prApprove';
+  | 'prApprove'
+  | 'cashbook';
 
 /** A store-managed product category — created/renamed/hidden from the
  * Categories page. Products link back by name (soft reference), not id. */
@@ -184,6 +186,18 @@ export interface Movement {
   item: string;
   qty: number;
   unit: string;
+}
+
+/** A manually logged cashbook entry — daily income/expense not already
+ * captured by POS checkout or purchasing (rent, utilities, wages, etc). */
+export interface CashEntry {
+  id: string;
+  date: string;
+  type: 'income' | 'expense';
+  category: string;
+  note: string;
+  amount: number;
+  createdBy: string;
 }
 
 export interface StoreSettings {

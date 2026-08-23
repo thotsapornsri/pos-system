@@ -114,14 +114,25 @@ export function ProductsView() {
             </div>
             <div style={{ color: 'var(--text-muted)' }}>{p.unit}</div>
             {canManage && (
-              <EditDeleteActions
-                editLabel={`${t.save} ${p.name}`}
-                deleteLabel={`${t.actionsCol} ${p.name}`}
-                onEdit={() =>
-                  pos.openModal({ type: 'product', mode: 'edit', data: { ...p } as unknown as Record<string, string | number> })
-                }
-                onDelete={() => pos.deleteProduct(p.id)}
-              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={`${t.copyProduct} ${p.name}`}
+                  title={t.copyProduct}
+                  onClick={() => pos.duplicateProduct(p.id)}
+                >
+                  <Icon name="copy" size={14} />
+                </button>
+                <EditDeleteActions
+                  editLabel={`${t.save} ${p.name}`}
+                  deleteLabel={`${t.actionsCol} ${p.name}`}
+                  onEdit={() =>
+                    pos.openModal({ type: 'product', mode: 'edit', data: { ...p } as unknown as Record<string, string | number> })
+                  }
+                  onDelete={() => pos.deleteProduct(p.id)}
+                />
+              </div>
             )}
           </div>
         ))}

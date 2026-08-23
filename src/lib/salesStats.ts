@@ -1,16 +1,17 @@
 import type { PeriodData } from '../data/seed';
+import { expensesInRange } from './cashbookStats';
 import type { Sale } from '../store/queries/useSales';
-import type { Material, Product, Recipe } from '../types';
+import type { CashEntry, Material, Product, Recipe } from '../types';
 
 /**
- * Derives Dashboard/Reports numbers from real `sales` rows instead of demo
- * data. Revenue/orders/best-&-worst-sellers are exact. Gross profit/COGS
- * are only as complete as the store's own data lets them be: cost is known
- * only for products with a BOM recipe (ingredient cost / batch qty) — a
- * plain retail product with no recipe contributes 0 cost, which understates
- * COGS (and so overstates gross profit) for that item. There is no
- * operating-expense tracking anywhere in the app, so `opex` is always 0 and
- * `net` is really "revenue minus known COGS", not a true net profit.
+ * Derives Dashboard/Reports numbers from real `sales` rows (and, for opex,
+ * the cashbook's expense entries) instead of demo data. Revenue/orders/
+ * best-&-worst-sellers are exact. Gross profit/COGS are only as complete as
+ * the store's own data lets them be: cost is known only for products with a
+ * BOM recipe (ingredient cost / batch qty) — a plain retail product with no
+ * recipe contributes 0 cost, which understates COGS (and so overstates
+ * gross profit) for that item. `opex` is only as complete as what's been
+ * manually logged in the cashbook — an unused cashbook still means opex is 0.
  */
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -66,7 +67,7 @@ function kpisFor(current: Sale[], previous: Sale[], costMap: Map<number, number>
   ];
 }
 
-export function dayStats(sales: Sale[], costMap: Map<number, number>, now = new Date()): PeriodData {
+export function dayStats(sales: Sale[], costMap: Map<number, number>, expenses: CashEntry[] = [], now = new Date()): PeriodData {
   const today = sales.filter((s) => isSameDay(new Date(s.createdAt), now));
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
@@ -82,10 +83,14 @@ export function dayStats(sales: Sale[], costMap: Map<number, number>, now = new 
   }
 
   const cogs = cogsOf(today, costMap);
-  return { kpis: kpisFor(today, yesterdaySales, costMap), bars, barLabels, cogs, opex: 0, net: revenueOf(today) - cogs };
+  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayStart.getDate() + 1);
+  const opex = expensesInRange(expenses, dayStart, dayEnd);
+  return { kpis: kpisFor(today, yesterdaySales, costMap), bars, barLabels, cogs, opex, net: revenueOf(today) - cogs - opex };
 }
 
-export function monthStats(sales: Sale[], costMap: Map<number, number>, now = new Date()): PeriodData {
+export function monthStats(sales: Sale[], costMap: Map<number, number>, expenses: CashEntry[] = [], now = new Date()): PeriodData {
   const y = now.getFullYear();
   const m = now.getMonth();
   const inMonth = (d: Date, yy: number, mm: number) => d.getFullYear() === yy && d.getMonth() === mm;
@@ -95,10 +100,11 @@ export function monthStats(sales: Sale[], costMap: Map<number, number>, now = ne
 
   const bars = MONTH_LABELS.map((_, i) => revenueOf(sales.filter((s) => inMonth(new Date(s.createdAt), y, i))));
   const cogs = cogsOf(thisMonth, costMap);
-  return { kpis: kpisFor(thisMonth, prevMonth, costMap), bars, barLabels: MONTH_LABELS, cogs, opex: 0, net: revenueOf(thisMonth) - cogs };
+  const opex = expensesInRange(expenses, new Date(y, m, 1), new Date(y, m + 1, 1));
+  return { kpis: kpisFor(thisMonth, prevMonth, costMap), bars, barLabels: MONTH_LABELS, cogs, opex, net: revenueOf(thisMonth) - cogs - opex };
 }
 
-export function yearStats(sales: Sale[], costMap: Map<number, number>, now = new Date()): PeriodData {
+export function yearStats(sales: Sale[], costMap: Map<number, number>, expenses: CashEntry[] = [], now = new Date()): PeriodData {
   const y = now.getFullYear();
   const inYear = (d: Date, yy: number) => d.getFullYear() === yy;
   const thisYear = sales.filter((s) => inYear(new Date(s.createdAt), y));
@@ -108,7 +114,8 @@ export function yearStats(sales: Sale[], costMap: Map<number, number>, now = new
   const bars = years.map((yy) => revenueOf(sales.filter((s) => inYear(new Date(s.createdAt), yy))));
   const barLabels = years.map(String);
   const cogs = cogsOf(thisYear, costMap);
-  return { kpis: kpisFor(thisYear, prevYear, costMap), bars, barLabels, cogs, opex: 0, net: revenueOf(thisYear) - cogs };
+  const opex = expensesInRange(expenses, new Date(y, 0, 1), new Date(y + 1, 0, 1));
+  return { kpis: kpisFor(thisYear, prevYear, costMap), bars, barLabels, cogs, opex, net: revenueOf(thisYear) - cogs - opex };
 }
 
 function qtySoldByProductName(sales: Sale[]): Map<string, number> {

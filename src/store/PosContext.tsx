@@ -91,9 +91,11 @@ import {
 } from './queries/useSalesOrders';
 import { GOODS_RECEIPTS_KEY, completeGoodsReceiptRpc, useGoodsReceiptsQuery } from './queries/useGoodsReceipts';
 import { MOVEMENTS_KEY, insertMovement, useMovementsQuery } from './queries/useMovements';
+import { CASH_ENTRIES_KEY, deleteCashEntryRow, insertCashEntry, useCashEntriesQuery } from './queries/useCashEntries';
 import { nextDocNo } from './queries/useDocNumbering';
 import type {
   Cart,
+  CashEntry,
   Category,
   ConfirmAction,
   CrudModalState,
@@ -284,6 +286,7 @@ export interface PosApi extends PosState {
   salesOrders: SalesOrder[];
   goodsReceipts: GoodsReceipt[];
   movements: Movement[];
+  cashEntries: CashEntry[];
   rolePermissions: RolePermissions;
   storeSettings: StoreSettings;
   storeId: string | undefined;
@@ -310,6 +313,10 @@ export interface PosApi extends PosState {
   inviteUser: () => void;
 
   deleteProduct: (id: number) => void;
+  duplicateProduct: (id: number) => void;
+
+  addCashEntry: (entry: { date: string; type: 'income' | 'expense'; category: string; note: string; amount: number }) => void;
+  deleteCashEntry: (id: string) => void;
   deleteMaterial: (id: string) => void;
   deleteUser: (id: string) => void;
   deleteVendor: (id: string) => void;
@@ -387,6 +394,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
   const salesOrdersQuery = useSalesOrdersQuery();
   const goodsReceiptsQuery = useGoodsReceiptsQuery();
   const movementsQuery = useMovementsQuery();
+  const cashEntriesQuery = useCashEntriesQuery();
 
   const updateRecipeMutation = useUpdateRecipeMutation();
   const updateIngredientMutation = useUpdateIngredientMutation();
@@ -407,6 +415,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
   const salesOrders = salesOrdersQuery.data ?? [];
   const goodsReceipts = goodsReceiptsQuery.data ?? [];
   const movements = movementsQuery.data ?? [];
+  const cashEntries = cashEntriesQuery.data ?? [];
   const rolePermissions =
     rolePermissionsQuery.data ?? ({ Owner: [], Manager: [], Cashier: [], Viewer: [] } as RolePermissions);
   const storeSettings = storeSettingsQuery.data?.storeSettings ?? { name: '', businessType: '', currency: 'THB' as const, taxRate: 0 };
@@ -439,7 +448,8 @@ export function PosProvider({ children }: { children: ReactNode }) {
       purchaseOrdersQuery.error ||
       salesOrdersQuery.error ||
       goodsReceiptsQuery.error ||
-      movementsQuery.error)?.message ?? null;
+      movementsQuery.error ||
+      cashEntriesQuery.error)?.message ?? null;
 
   const hasPerm = (key: PermissionKey): boolean => {
     if (!state.currentUser) return false;
@@ -686,6 +696,43 @@ export function PosProvider({ children }: { children: ReactNode }) {
         .then(() => qc.invalidateQueries({ queryKey: PRODUCTS_KEY }))
         .catch((err) => console.error('deleteProduct failed:', err)),
     );
+
+  // A copy is a genuinely separate product row (its own id/code), not a
+  // linked variant — stock starts at 0 since it's a distinct item that
+  // hasn't been stocked yet, even though every other field is cloned.
+  const duplicateProduct = (id: number) => {
+    const p = products.find((x) => x.id === id);
+    if (!p) return;
+    const suffix = Date.now().toString(36).toUpperCase();
+    void insertProduct({
+      code: `${p.code}-${suffix}`,
+      name: `${p.name} (${t.copySuffix})`,
+      price: p.price,
+      cat: p.cat,
+      grad: p.grad,
+      initial: p.initial,
+      stock: 0,
+      unit: p.unit,
+      description: p.description,
+    })
+      .then(() => qc.invalidateQueries({ queryKey: PRODUCTS_KEY }))
+      .catch((err) => console.error('duplicateProduct failed:', err));
+  };
+
+  /* ---------- cashbook ---------- */
+  const addCashEntry = (entry: { date: string; type: 'income' | 'expense'; category: string; note: string; amount: number }) => {
+    void insertCashEntry({ ...entry, createdBy: state.currentUser?.name ?? '' })
+      .then(() => qc.invalidateQueries({ queryKey: CASH_ENTRIES_KEY }))
+      .catch((err) => console.error('addCashEntry failed:', err));
+  };
+
+  const deleteCashEntry = (id: string) =>
+    confirmDelete(() =>
+      void deleteCashEntryRow(id)
+        .then(() => qc.invalidateQueries({ queryKey: CASH_ENTRIES_KEY }))
+        .catch((err) => console.error('deleteCashEntry failed:', err)),
+    );
+
   const deleteMaterial = (id: string) =>
     confirmDelete(() =>
       void deleteMaterialRow(id)
@@ -1053,6 +1100,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
         salesOrders,
         goodsReceipts,
         movements,
+        cashEntries,
         rolePermissions,
         storeSettings,
         storeId,
@@ -1073,6 +1121,9 @@ export function PosProvider({ children }: { children: ReactNode }) {
         saveModal,
         inviteUser,
         deleteProduct,
+        duplicateProduct,
+        addCashEntry,
+        deleteCashEntry,
         deleteMaterial,
         deleteUser,
         deleteVendor,
