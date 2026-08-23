@@ -200,6 +200,14 @@ export interface CashEntry {
   createdBy: string;
 }
 
+/** A managed category for cashbook entries — income and expense each have
+ * their own separate list. */
+export interface CashCategory {
+  id: string;
+  name: string;
+  type: 'income' | 'expense';
+}
+
 export interface StoreSettings {
   name: string;
   businessType: string;
@@ -231,7 +239,7 @@ export type PrintDocRef =
   | { type: 'so'; doc: SalesOrder }
   | { type: 'gr'; doc: GoodsReceipt };
 
-export type ModalType = 'product' | 'material' | 'user' | 'vendor' | 'category';
+export type ModalType = 'product' | 'material' | 'user' | 'vendor' | 'category' | 'cashCategory';
 
 export interface CrudModalState {
   type: ModalType;

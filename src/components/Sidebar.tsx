@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { usePos, type ProcTab, type ReportTab, type UsersTab } from '../store/PosContext';
+import { usePos, type CashbookTab, type ProcTab, type ReportTab, type UsersTab } from '../store/PosContext';
 import type { View } from '../types';
 import { Icon, type IconName } from './ui/Icon';
 import { Avatar } from './ui/primitives';
@@ -77,6 +77,7 @@ export function Sidebar() {
   const gotoProc = (tab: ProcTab) => () => pos.set({ view: 'purchasing', procTab: tab });
   const gotoReport = (tab: ReportTab) => () => pos.set({ view: 'reports', reportTab: tab });
   const gotoUsers = (tab: UsersTab) => () => pos.set({ view: 'users', usersTab: tab });
+  const gotoCashbook = (tab: CashbookTab) => () => pos.set({ view: 'cashbook', cashbookTab: tab });
 
   const showFullReports = currentUser.role !== 'Cashier';
   const gate = (key: Parameters<typeof pos.hasPerm>[0], node: ReactNode) => (pos.hasPerm(key) ? node : null);
@@ -151,7 +152,22 @@ export function Sidebar() {
 
       {gate(
         'cashbook',
-        <NavItem icon="wallet" label={t.nav.cashbook} active={view === 'cashbook'} collapsed={collapsed} onClick={goto('cashbook')} />,
+        <>
+          <NavItem
+            icon="wallet"
+            label={t.nav.cashbook}
+            active={view === 'cashbook'}
+            collapsed={collapsed}
+            onClick={() => pos.toggleMenu('cashbook')}
+            chevron={expandedMenu === 'cashbook' ? 'open' : 'closed'}
+          />
+          {expandedMenu === 'cashbook' && (
+            <div className="subnav">
+              <SubNavItem icon="wallet" label={t.cashEntriesTab} collapsed={collapsed} onClick={gotoCashbook('entries')} current={view === 'cashbook' && pos.cashbookTab === 'entries'} />
+              <SubNavItem icon="tag" label={t.cashCategoriesTab} collapsed={collapsed} onClick={gotoCashbook('categories')} current={view === 'cashbook' && pos.cashbookTab === 'categories'} />
+            </div>
+          )}
+        </>,
       )}
 
       {gate(

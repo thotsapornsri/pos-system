@@ -3,6 +3,7 @@ import { usePos } from '../store/PosContext';
 import { totalsFor, type CashPeriodKey } from '../lib/cashbookStats';
 import { today } from '../lib/format';
 import { Icon } from '../components/ui/Icon';
+import { EditDeleteActions } from '../components/ui/primitives';
 
 const PERIODS: CashPeriodKey[] = ['day', 'week', 'month', 'year'];
 
@@ -14,6 +15,8 @@ function AddEntryForm({ onClose }: { onClose: () => void }) {
   const [category, setCategory] = useState('');
   const [note, setNote] = useState('');
   const [amount, setAmount] = useState(0);
+
+  const categoryOptions = pos.cashCategories.filter((c) => c.type === type);
 
   return (
     <form
@@ -30,14 +33,20 @@ function AddEntryForm({ onClose }: { onClose: () => void }) {
         <button
           type="button"
           className={`pill pill--sm${type === 'income' ? ' pill--active' : ''}`}
-          onClick={() => setType('income')}
+          onClick={() => {
+            setType('income');
+            setCategory('');
+          }}
         >
           {t.income}
         </button>
         <button
           type="button"
           className={`pill pill--sm${type === 'expense' ? ' pill--active' : ''}`}
-          onClick={() => setType('expense')}
+          onClick={() => {
+            setType('expense');
+            setCategory('');
+          }}
         >
           {t.expense}
         </button>
@@ -68,7 +77,14 @@ function AddEntryForm({ onClose }: { onClose: () => void }) {
           <span className="field-label field-label--xs" style={{ display: 'block' }}>
             {t.entryCategory}
           </span>
-          <input className="input" value={category} onChange={(e) => setCategory(e.target.value)} />
+          <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="">—</option>
+            {categoryOptions.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </label>
         <label>
           <span className="field-label field-label--xs" style={{ display: 'block' }}>
@@ -90,7 +106,7 @@ function AddEntryForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function CashbookView() {
+function CashEntriesPanel() {
   const pos = usePos();
   const { t } = pos;
   const canManage = pos.hasPerm('cashbook');
@@ -217,4 +233,57 @@ export function CashbookView() {
       </div>
     </>
   );
+}
+
+function CashCategoriesPanel() {
+  const pos = usePos();
+  const { t } = pos;
+  const canManage = pos.hasPerm('cashbook');
+  const cols = canManage ? '2fr 1fr 1fr' : '2fr 1fr';
+
+  return (
+    <>
+      {canManage && (
+        <button
+          type="button"
+          className="btn btn--primary"
+          style={{ marginBottom: 16, fontSize: 13 }}
+          onClick={() => pos.openModal({ type: 'cashCategory', mode: 'add', data: { name: '', type: 'expense' } })}
+        >
+          + {t.addCashCategory}
+        </button>
+      )}
+
+      <div className="card table-list">
+        <div className="grid-head" style={{ gridTemplateColumns: cols, background: 'transparent', fontSize: 11.5, padding: '14px 20px' }}>
+          <div>{t.categoryName}</div>
+          <div>{t.entryType}</div>
+          {canManage && <div>{t.actionsCol}</div>}
+        </div>
+
+        {pos.cashCategories.map((c) => (
+          <div key={c.id} className="grid-row" style={{ gridTemplateColumns: cols }}>
+            <div style={{ fontWeight: 700 }}>{c.name}</div>
+            <div style={{ color: c.type === 'income' ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>
+              {c.type === 'income' ? t.income : t.expense}
+            </div>
+            {canManage && (
+              <EditDeleteActions
+                editLabel={`${t.save} ${c.name}`}
+                deleteLabel={`${t.actionsCol} ${c.name}`}
+                onEdit={() => pos.openModal({ type: 'cashCategory', mode: 'edit', data: { id: c.id, name: c.name, type: c.type } })}
+                onDelete={() => pos.deleteCashCategory(c.id)}
+              />
+            )}
+          </div>
+        ))}
+        {pos.cashCategories.length === 0 && <p className="empty">{t.noCashCategoriesYet}</p>}
+      </div>
+    </>
+  );
+}
+
+export function CashbookView() {
+  const pos = usePos();
+  return pos.cashbookTab === 'entries' ? <CashEntriesPanel /> : <CashCategoriesPanel />;
 }

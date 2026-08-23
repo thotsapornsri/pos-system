@@ -3,6 +3,8 @@ import type { Translation } from '../../i18n/translations';
 import { usePos } from '../../store/PosContext';
 import type { Category, CrudModalState } from '../../types';
 
+const CASH_TYPE_OPTIONS = ['income', 'expense'] as const;
+
 interface FieldDef {
   key: string;
   label: string;
@@ -34,6 +36,18 @@ function fieldsFor(modal: CrudModalState, t: Translation, categories: Category[]
       return {
         title: modal.mode === 'add' ? t.addCategory : t.categoryName,
         fields: [{ key: 'name', label: t.categoryName }],
+      };
+    case 'cashCategory':
+      return {
+        title: modal.mode === 'add' ? t.addCashCategory : t.categoryName,
+        fields: [
+          { key: 'name', label: t.categoryName },
+          {
+            key: 'type',
+            label: t.entryType,
+            options: CASH_TYPE_OPTIONS.map((v) => ({ value: v, label: v === 'income' ? t.income : t.expense })),
+          },
+        ],
       };
     case 'material':
       return {

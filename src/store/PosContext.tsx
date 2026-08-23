@@ -9,6 +9,7 @@ import {
 import { PERMISSION_KEYS, type PeriodKey } from '../data/seed';
 import { T, type Translation } from '../i18n/translations';
 import { formatMoney } from '../lib/format';
+import { nextProductCode } from '../lib/productCode';
 import { supabase } from '../lib/supabaseClient';
 import {
   PRODUCTS_KEY,
@@ -92,9 +93,17 @@ import {
 import { GOODS_RECEIPTS_KEY, completeGoodsReceiptRpc, useGoodsReceiptsQuery } from './queries/useGoodsReceipts';
 import { MOVEMENTS_KEY, insertMovement, useMovementsQuery } from './queries/useMovements';
 import { CASH_ENTRIES_KEY, deleteCashEntryRow, insertCashEntry, useCashEntriesQuery } from './queries/useCashEntries';
+import {
+  CASH_CATEGORIES_KEY,
+  deleteCashCategoryRow,
+  insertCashCategory,
+  updateCashCategoryRow,
+  useCashCategoriesQuery,
+} from './queries/useCashCategories';
 import { nextDocNo } from './queries/useDocNumbering';
 import type {
   Cart,
+  CashCategory,
   CashEntry,
   Category,
   ConfirmAction,
@@ -125,11 +134,12 @@ import type {
   View,
 } from '../types';
 
-export type ExpandableMenu = 'reports' | 'users' | 'purchasing';
+export type ExpandableMenu = 'reports' | 'users' | 'purchasing' | 'cashbook';
 export type ReportTab = 'daily' | 'monthly' | 'yearly' | 'stock' | 'movement';
 export type UsersTab = 'list' | 'roles';
 export type ProcTab = 'pr' | 'po' | 'gr' | 'vendor';
 export type BomTab = 'bom' | 'materials';
+export type CashbookTab = 'entries' | 'categories';
 export type PaymentStep = 'method' | 'matching' | 'success';
 
 export interface CurrentUser {
@@ -160,6 +170,7 @@ interface PosState {
   usersTab: UsersTab;
   procTab: ProcTab;
   bomTab: BomTab;
+  cashbookTab: CashbookTab;
 
   prHeaderOpen: boolean;
   prItemsOpen: boolean;
@@ -219,6 +230,7 @@ function initialState(): PosState {
     usersTab: 'list',
     procTab: 'pr',
     bomTab: 'bom',
+    cashbookTab: 'entries',
 
     prHeaderOpen: true,
     prItemsOpen: true,
@@ -287,6 +299,7 @@ export interface PosApi extends PosState {
   goodsReceipts: GoodsReceipt[];
   movements: Movement[];
   cashEntries: CashEntry[];
+  cashCategories: CashCategory[];
   rolePermissions: RolePermissions;
   storeSettings: StoreSettings;
   storeId: string | undefined;
@@ -317,6 +330,7 @@ export interface PosApi extends PosState {
 
   addCashEntry: (entry: { date: string; type: 'income' | 'expense'; category: string; note: string; amount: number }) => void;
   deleteCashEntry: (id: string) => void;
+  deleteCashCategory: (id: string) => void;
   deleteMaterial: (id: string) => void;
   deleteUser: (id: string) => void;
   deleteVendor: (id: string) => void;
@@ -395,6 +409,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
   const goodsReceiptsQuery = useGoodsReceiptsQuery();
   const movementsQuery = useMovementsQuery();
   const cashEntriesQuery = useCashEntriesQuery();
+  const cashCategoriesQuery = useCashCategoriesQuery();
 
   const updateRecipeMutation = useUpdateRecipeMutation();
   const updateIngredientMutation = useUpdateIngredientMutation();
@@ -416,6 +431,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
   const goodsReceipts = goodsReceiptsQuery.data ?? [];
   const movements = movementsQuery.data ?? [];
   const cashEntries = cashEntriesQuery.data ?? [];
+  const cashCategories = cashCategoriesQuery.data ?? [];
   const rolePermissions =
     rolePermissionsQuery.data ?? ({ Owner: [], Manager: [], Cashier: [], Viewer: [] } as RolePermissions);
   const storeSettings = storeSettingsQuery.data?.storeSettings ?? { name: '', businessType: '', currency: 'THB' as const, taxRate: 0 };
@@ -449,7 +465,8 @@ export function PosProvider({ children }: { children: ReactNode }) {
       salesOrdersQuery.error ||
       goodsReceiptsQuery.error ||
       movementsQuery.error ||
-      cashEntriesQuery.error)?.message ?? null;
+      cashEntriesQuery.error ||
+      cashCategoriesQuery.error)?.message ?? null;
 
   const hasPerm = (key: PermissionKey): boolean => {
     if (!state.currentUser) return false;
@@ -633,7 +650,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
         if (mode === 'add') await insertVendor(fields);
         else await updateVendorRow(d.id, fields);
         await qc.invalidateQueries({ queryKey: VENDORS_KEY });
-      } else {
+      } else if (type === 'category') {
         const d = data as unknown as Category;
         if (mode === 'add') {
           await insertCategory(d.name);
@@ -651,6 +668,27 @@ export function PosProvider({ children }: { children: ReactNode }) {
           }
         }
         await qc.invalidateQueries({ queryKey: CATEGORIES_KEY });
+      } else {
+        const d = data as unknown as CashCategory;
+        if (mode === 'add') {
+          await insertCashCategory(d.name, d.type);
+        } else {
+          // Entries link back to a category by name (same soft-reference
+          // pattern as product categories) — renaming cascades onto every
+          // cash_entries row still tagged with the old name.
+          const prev = cashCategories.find((c) => c.id === d.id);
+          await updateCashCategoryRow(d.id, { name: d.name, type: d.type });
+          if (prev && (prev.name !== d.name || prev.type !== d.type)) {
+            const { error } = await supabase
+              .from('cash_entries')
+              .update({ category: d.name, type: d.type })
+              .eq('category', prev.name)
+              .eq('type', prev.type);
+            if (error) throw error;
+            await qc.invalidateQueries({ queryKey: CASH_ENTRIES_KEY });
+          }
+        }
+        await qc.invalidateQueries({ queryKey: CASH_CATEGORIES_KEY });
       }
     };
     void run().catch((err) => console.error('saveModal failed:', err));
@@ -703,9 +741,8 @@ export function PosProvider({ children }: { children: ReactNode }) {
   const duplicateProduct = (id: number) => {
     const p = products.find((x) => x.id === id);
     if (!p) return;
-    const suffix = Date.now().toString(36).toUpperCase();
     void insertProduct({
-      code: `${p.code}-${suffix}`,
+      code: nextProductCode(products),
       name: `${p.name} (${t.copySuffix})`,
       price: p.price,
       cat: p.cat,
@@ -731,6 +768,13 @@ export function PosProvider({ children }: { children: ReactNode }) {
       void deleteCashEntryRow(id)
         .then(() => qc.invalidateQueries({ queryKey: CASH_ENTRIES_KEY }))
         .catch((err) => console.error('deleteCashEntry failed:', err)),
+    );
+
+  const deleteCashCategory = (id: string) =>
+    confirmDelete(() =>
+      void deleteCashCategoryRow(id)
+        .then(() => qc.invalidateQueries({ queryKey: CASH_CATEGORIES_KEY }))
+        .catch((err) => console.error('deleteCashCategory failed:', err)),
     );
 
   const deleteMaterial = (id: string) =>
@@ -1101,6 +1145,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
         goodsReceipts,
         movements,
         cashEntries,
+        cashCategories,
         rolePermissions,
         storeSettings,
         storeId,
@@ -1124,6 +1169,7 @@ export function PosProvider({ children }: { children: ReactNode }) {
         duplicateProduct,
         addCashEntry,
         deleteCashEntry,
+        deleteCashCategory,
         deleteMaterial,
         deleteUser,
         deleteVendor,

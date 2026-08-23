@@ -1,4 +1,5 @@
 import { exportCSV, exportPDF } from '../lib/export';
+import { nextProductCode } from '../lib/productCode';
 import { usePos } from '../store/PosContext';
 import { Icon } from '../components/ui/Icon';
 import { ImageSlot } from '../components/ui/ImageSlot';
@@ -25,7 +26,7 @@ export function ProductsView() {
       type: 'product',
       mode: 'add',
       data: {
-        code: `PRD-${String(pos.products.length + 1).padStart(3, '0')}`,
+        code: nextProductCode(pos.products),
         name: '',
         cat: pos.categories[0]?.name ?? '',
         price: 0,
